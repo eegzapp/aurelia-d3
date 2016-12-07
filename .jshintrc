@@ -1,0 +1,9 @@
+/**
+* This is a config file for JSHint (static code analysis tool / code checker)
+* The options can be found online at: http://jshint.com/docs/options/
+*/
+{
+  "eqeqeq": true, // Says that === is the normal way to equate and warns on ==
+  "esversion": 6  // Looks at the code as if it were written for ECMAScript 6
+}
+

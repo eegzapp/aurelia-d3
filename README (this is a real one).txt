@@ -20,3 +20,7 @@ Setting up the skeleton Hello World project
             - au run --watch (updates running client bundle whenever changes are saved)
             - au build --env prod (creates a production build)
 
+Notes:
+--------------------------------
+- Store name/password so you don't have to submit it every push
+    - ssh-add -k ~/.ssh/id_rsa (haven't tried this, got it off stackoverflow)
