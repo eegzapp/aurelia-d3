@@ -1,8 +1,13 @@
 <template>
   <require from="spam-spam"></require>
+  <require from="my-d3"></require>
 
   <h1 css.bind="{color:'red'}">${message}</h1>
 
   <spam-spam message.bind="'replacement text'"></spam-spam>
+
+  <my-d3 my-data.bind="[0,1,2,3,4,5,6,7]"></my-d3>
+  <my-d3 my-data.bind="['A','B','C']"></my-d3>
+  <my-d3 my-data.bind="[{x:0,y:1}, {x:20,y:30}]"></my-d3>
 
 </template>
