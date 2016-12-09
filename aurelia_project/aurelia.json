@@ -24,6 +24,12 @@
     "fileExtension": ".html",
     "source": "src/**/*.html"
   },
+  "jsonProcessor": {
+    "id": "json",
+    "displayName": "Json",
+    "fileExtension": ".json",
+    "source": "src/**/*.json"
+  },
   "cssProcessor": {
     "id": "sass",
     "displayName": "Sass",
@@ -64,7 +70,8 @@
           "name": "text",
           "extensions": [
             ".html",
-            ".css"
+            ".css",
+            ".json"
           ],
           "stub": true
         }
@@ -79,7 +86,7 @@
         "name": "app-bundle.js",
         "source": [
           "[**/*.js]",
-          "**/*.{css,html}"
+          "**/*.{css,json,html}"
         ]
       },
       {
@@ -110,6 +117,7 @@
           "aurelia-task-queue",
           "aurelia-templating",
           "aurelia-templating-binding",
+          "aurelia-http-client",
           "text",
           {
             "name": "d3",

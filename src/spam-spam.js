@@ -1,8 +1,8 @@
 import { bindable } from 'aurelia-framework';
 
 export class SpamSpam {
-  @bindable message;
+  @bindable spamMessage;
   constructor() {
-    this.message = 'Spam, mighty spam!';
+    this.spamMessage = 'Spam, mighty spam!';
   }
 }

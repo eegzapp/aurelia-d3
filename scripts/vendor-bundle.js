@@ -12165,6 +12165,170 @@ define('aurelia-dependency-injection',['exports', 'aurelia-metadata', 'aurelia-p
     };
   }
 });
+define('aurelia-event-aggregator',['exports', 'aurelia-logging'], function (exports, _aureliaLogging) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.EventAggregator = undefined;
+  exports.includeEventsIn = includeEventsIn;
+  exports.configure = configure;
+
+  var LogManager = _interopRequireWildcard(_aureliaLogging);
+
+  function _interopRequireWildcard(obj) {
+    if (obj && obj.__esModule) {
+      return obj;
+    } else {
+      var newObj = {};
+
+      if (obj != null) {
+        for (var key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
+        }
+      }
+
+      newObj.default = obj;
+      return newObj;
+    }
+  }
+
+  
+
+  var logger = LogManager.getLogger('event-aggregator');
+
+  var Handler = function () {
+    function Handler(messageType, callback) {
+      
+
+      this.messageType = messageType;
+      this.callback = callback;
+    }
+
+    Handler.prototype.handle = function handle(message) {
+      if (message instanceof this.messageType) {
+        this.callback.call(null, message);
+      }
+    };
+
+    return Handler;
+  }();
+
+  function invokeCallback(callback, data, event) {
+    try {
+      callback(data, event);
+    } catch (e) {
+      logger.error(e);
+    }
+  }
+
+  function invokeHandler(handler, data) {
+    try {
+      handler.handle(data);
+    } catch (e) {
+      logger.error(e);
+    }
+  }
+
+  var EventAggregator = exports.EventAggregator = function () {
+    function EventAggregator() {
+      
+
+      this.eventLookup = {};
+      this.messageHandlers = [];
+    }
+
+    EventAggregator.prototype.publish = function publish(event, data) {
+      var subscribers = void 0;
+      var i = void 0;
+
+      if (!event) {
+        throw new Error('Event was invalid.');
+      }
+
+      if (typeof event === 'string') {
+        subscribers = this.eventLookup[event];
+        if (subscribers) {
+          subscribers = subscribers.slice();
+          i = subscribers.length;
+
+          while (i--) {
+            invokeCallback(subscribers[i], data, event);
+          }
+        }
+      } else {
+        subscribers = this.messageHandlers.slice();
+        i = subscribers.length;
+
+        while (i--) {
+          invokeHandler(subscribers[i], event);
+        }
+      }
+    };
+
+    EventAggregator.prototype.subscribe = function subscribe(event, callback) {
+      var handler = void 0;
+      var subscribers = void 0;
+
+      if (!event) {
+        throw new Error('Event channel/type was invalid.');
+      }
+
+      if (typeof event === 'string') {
+        handler = callback;
+        subscribers = this.eventLookup[event] || (this.eventLookup[event] = []);
+      } else {
+        handler = new Handler(event, callback);
+        subscribers = this.messageHandlers;
+      }
+
+      subscribers.push(handler);
+
+      return {
+        dispose: function dispose() {
+          var idx = subscribers.indexOf(handler);
+          if (idx !== -1) {
+            subscribers.splice(idx, 1);
+          }
+        }
+      };
+    };
+
+    EventAggregator.prototype.subscribeOnce = function subscribeOnce(event, callback) {
+      var sub = this.subscribe(event, function (a, b) {
+        sub.dispose();
+        return callback(a, b);
+      });
+
+      return sub;
+    };
+
+    return EventAggregator;
+  }();
+
+  function includeEventsIn(obj) {
+    var ea = new EventAggregator();
+
+    obj.subscribeOnce = function (event, callback) {
+      return ea.subscribeOnce(event, callback);
+    };
+
+    obj.subscribe = function (event, callback) {
+      return ea.subscribe(event, callback);
+    };
+
+    obj.publish = function (event, data) {
+      ea.publish(event, data);
+    };
+
+    return ea;
+  }
+
+  function configure(config) {
+    config.instance(EventAggregator, includeEventsIn(config.aurelia));
+  }
+});
 define('aurelia-framework',['exports', 'aurelia-dependency-injection', 'aurelia-binding', 'aurelia-metadata', 'aurelia-templating', 'aurelia-loader', 'aurelia-task-queue', 'aurelia-path', 'aurelia-pal', 'aurelia-logging'], function (exports, _aureliaDependencyInjection, _aureliaBinding, _aureliaMetadata, _aureliaTemplating, _aureliaLoader, _aureliaTaskQueue, _aureliaPath, _aureliaPal, _aureliaLogging) {
   'use strict';
 
@@ -12714,170 +12878,6 @@ define('aurelia-framework',['exports', 'aurelia-dependency-injection', 'aurelia-
   exports.FrameworkConfiguration = FrameworkConfiguration;
   var LogManager = exports.LogManager = TheLogManager;
 });
-define('aurelia-event-aggregator',['exports', 'aurelia-logging'], function (exports, _aureliaLogging) {
-  'use strict';
-
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-  exports.EventAggregator = undefined;
-  exports.includeEventsIn = includeEventsIn;
-  exports.configure = configure;
-
-  var LogManager = _interopRequireWildcard(_aureliaLogging);
-
-  function _interopRequireWildcard(obj) {
-    if (obj && obj.__esModule) {
-      return obj;
-    } else {
-      var newObj = {};
-
-      if (obj != null) {
-        for (var key in obj) {
-          if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
-        }
-      }
-
-      newObj.default = obj;
-      return newObj;
-    }
-  }
-
-  
-
-  var logger = LogManager.getLogger('event-aggregator');
-
-  var Handler = function () {
-    function Handler(messageType, callback) {
-      
-
-      this.messageType = messageType;
-      this.callback = callback;
-    }
-
-    Handler.prototype.handle = function handle(message) {
-      if (message instanceof this.messageType) {
-        this.callback.call(null, message);
-      }
-    };
-
-    return Handler;
-  }();
-
-  function invokeCallback(callback, data, event) {
-    try {
-      callback(data, event);
-    } catch (e) {
-      logger.error(e);
-    }
-  }
-
-  function invokeHandler(handler, data) {
-    try {
-      handler.handle(data);
-    } catch (e) {
-      logger.error(e);
-    }
-  }
-
-  var EventAggregator = exports.EventAggregator = function () {
-    function EventAggregator() {
-      
-
-      this.eventLookup = {};
-      this.messageHandlers = [];
-    }
-
-    EventAggregator.prototype.publish = function publish(event, data) {
-      var subscribers = void 0;
-      var i = void 0;
-
-      if (!event) {
-        throw new Error('Event was invalid.');
-      }
-
-      if (typeof event === 'string') {
-        subscribers = this.eventLookup[event];
-        if (subscribers) {
-          subscribers = subscribers.slice();
-          i = subscribers.length;
-
-          while (i--) {
-            invokeCallback(subscribers[i], data, event);
-          }
-        }
-      } else {
-        subscribers = this.messageHandlers.slice();
-        i = subscribers.length;
-
-        while (i--) {
-          invokeHandler(subscribers[i], event);
-        }
-      }
-    };
-
-    EventAggregator.prototype.subscribe = function subscribe(event, callback) {
-      var handler = void 0;
-      var subscribers = void 0;
-
-      if (!event) {
-        throw new Error('Event channel/type was invalid.');
-      }
-
-      if (typeof event === 'string') {
-        handler = callback;
-        subscribers = this.eventLookup[event] || (this.eventLookup[event] = []);
-      } else {
-        handler = new Handler(event, callback);
-        subscribers = this.messageHandlers;
-      }
-
-      subscribers.push(handler);
-
-      return {
-        dispose: function dispose() {
-          var idx = subscribers.indexOf(handler);
-          if (idx !== -1) {
-            subscribers.splice(idx, 1);
-          }
-        }
-      };
-    };
-
-    EventAggregator.prototype.subscribeOnce = function subscribeOnce(event, callback) {
-      var sub = this.subscribe(event, function (a, b) {
-        sub.dispose();
-        return callback(a, b);
-      });
-
-      return sub;
-    };
-
-    return EventAggregator;
-  }();
-
-  function includeEventsIn(obj) {
-    var ea = new EventAggregator();
-
-    obj.subscribeOnce = function (event, callback) {
-      return ea.subscribeOnce(event, callback);
-    };
-
-    obj.subscribe = function (event, callback) {
-      return ea.subscribe(event, callback);
-    };
-
-    obj.publish = function (event, data) {
-      ea.publish(event, data);
-    };
-
-    return ea;
-  }
-
-  function configure(config) {
-    config.instance(EventAggregator, includeEventsIn(config.aurelia));
-  }
-});
 define('aurelia-history',['exports'], function (exports) {
   'use strict';
 
@@ -13402,149 +13402,6 @@ define('aurelia-loader',['exports', 'aurelia-path', 'aurelia-metadata'], functio
     return Loader;
   }();
 });
-define('aurelia-logging',['exports'], function (exports) {
-  'use strict';
-
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-  exports.getLogger = getLogger;
-  exports.addAppender = addAppender;
-  exports.setLevel = setLevel;
-  exports.getLevel = getLevel;
-
-  
-
-  var logLevel = exports.logLevel = {
-    none: 0,
-    error: 1,
-    warn: 2,
-    info: 3,
-    debug: 4
-  };
-
-  var loggers = {};
-  var appenders = [];
-  var slice = Array.prototype.slice;
-  var loggerConstructionKey = {};
-  var globalDefaultLevel = logLevel.none;
-
-  function log(logger, level, args) {
-    var i = appenders.length;
-    var current = void 0;
-
-    args = slice.call(args);
-    args.unshift(logger);
-
-    while (i--) {
-      current = appenders[i];
-      current[level].apply(current, args);
-    }
-  }
-
-  function debug() {
-    if (this.level < 4) {
-      return;
-    }
-
-    log(this, 'debug', arguments);
-  }
-
-  function info() {
-    if (this.level < 3) {
-      return;
-    }
-
-    log(this, 'info', arguments);
-  }
-
-  function warn() {
-    if (this.level < 2) {
-      return;
-    }
-
-    log(this, 'warn', arguments);
-  }
-
-  function error() {
-    if (this.level < 1) {
-      return;
-    }
-
-    log(this, 'error', arguments);
-  }
-
-  function connectLogger(logger) {
-    logger.debug = debug;
-    logger.info = info;
-    logger.warn = warn;
-    logger.error = error;
-  }
-
-  function createLogger(id) {
-    var logger = new Logger(id, loggerConstructionKey);
-    logger.setLevel(globalDefaultLevel);
-
-    if (appenders.length) {
-      connectLogger(logger);
-    }
-
-    return logger;
-  }
-
-  function getLogger(id) {
-    return loggers[id] || (loggers[id] = createLogger(id));
-  }
-
-  function addAppender(appender) {
-    appenders.push(appender);
-
-    if (appenders.length === 1) {
-      for (var key in loggers) {
-        connectLogger(loggers[key]);
-      }
-    }
-  }
-
-  function setLevel(level) {
-    globalDefaultLevel = level;
-    for (var key in loggers) {
-      loggers[key].setLevel(level);
-    }
-  }
-
-  function getLevel() {
-    return globalDefaultLevel;
-  }
-
-  var Logger = exports.Logger = function () {
-    function Logger(id, key) {
-      
-
-      this.level = logLevel.none;
-
-      if (key !== loggerConstructionKey) {
-        throw new Error('Cannot instantiate "Logger". Use "getLogger" instead.');
-      }
-
-      this.id = id;
-    }
-
-    Logger.prototype.debug = function debug(message) {};
-
-    Logger.prototype.info = function info(message) {};
-
-    Logger.prototype.warn = function warn(message) {};
-
-    Logger.prototype.error = function error(message) {};
-
-    Logger.prototype.setLevel = function setLevel(level) {
-      this.level = level;
-    };
-
-    return Logger;
-  }();
-});
 define('aurelia-loader-default',['exports', 'aurelia-loader', 'aurelia-pal', 'aurelia-metadata'], function (exports, _aureliaLoader, _aureliaPal, _aureliaMetadata) {
   'use strict';
 
@@ -13802,6 +13659,149 @@ define('aurelia-loader-default',['exports', 'aurelia-loader', 'aurelia-pal', 'au
       }));
     };
   }
+});
+define('aurelia-logging',['exports'], function (exports) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.getLogger = getLogger;
+  exports.addAppender = addAppender;
+  exports.setLevel = setLevel;
+  exports.getLevel = getLevel;
+
+  
+
+  var logLevel = exports.logLevel = {
+    none: 0,
+    error: 1,
+    warn: 2,
+    info: 3,
+    debug: 4
+  };
+
+  var loggers = {};
+  var appenders = [];
+  var slice = Array.prototype.slice;
+  var loggerConstructionKey = {};
+  var globalDefaultLevel = logLevel.none;
+
+  function log(logger, level, args) {
+    var i = appenders.length;
+    var current = void 0;
+
+    args = slice.call(args);
+    args.unshift(logger);
+
+    while (i--) {
+      current = appenders[i];
+      current[level].apply(current, args);
+    }
+  }
+
+  function debug() {
+    if (this.level < 4) {
+      return;
+    }
+
+    log(this, 'debug', arguments);
+  }
+
+  function info() {
+    if (this.level < 3) {
+      return;
+    }
+
+    log(this, 'info', arguments);
+  }
+
+  function warn() {
+    if (this.level < 2) {
+      return;
+    }
+
+    log(this, 'warn', arguments);
+  }
+
+  function error() {
+    if (this.level < 1) {
+      return;
+    }
+
+    log(this, 'error', arguments);
+  }
+
+  function connectLogger(logger) {
+    logger.debug = debug;
+    logger.info = info;
+    logger.warn = warn;
+    logger.error = error;
+  }
+
+  function createLogger(id) {
+    var logger = new Logger(id, loggerConstructionKey);
+    logger.setLevel(globalDefaultLevel);
+
+    if (appenders.length) {
+      connectLogger(logger);
+    }
+
+    return logger;
+  }
+
+  function getLogger(id) {
+    return loggers[id] || (loggers[id] = createLogger(id));
+  }
+
+  function addAppender(appender) {
+    appenders.push(appender);
+
+    if (appenders.length === 1) {
+      for (var key in loggers) {
+        connectLogger(loggers[key]);
+      }
+    }
+  }
+
+  function setLevel(level) {
+    globalDefaultLevel = level;
+    for (var key in loggers) {
+      loggers[key].setLevel(level);
+    }
+  }
+
+  function getLevel() {
+    return globalDefaultLevel;
+  }
+
+  var Logger = exports.Logger = function () {
+    function Logger(id, key) {
+      
+
+      this.level = logLevel.none;
+
+      if (key !== loggerConstructionKey) {
+        throw new Error('Cannot instantiate "Logger". Use "getLogger" instead.');
+      }
+
+      this.id = id;
+    }
+
+    Logger.prototype.debug = function debug(message) {};
+
+    Logger.prototype.info = function info(message) {};
+
+    Logger.prototype.warn = function warn(message) {};
+
+    Logger.prototype.error = function error(message) {};
+
+    Logger.prototype.setLevel = function setLevel(level) {
+      this.level = level;
+    };
+
+    return Logger;
+  }();
 });
 define('aurelia-logging-console',['exports', 'aurelia-logging'], function (exports, _aureliaLogging) {
   'use strict';
@@ -18135,6 +18135,154 @@ define('aurelia-router',['exports', 'aurelia-logging', 'aurelia-route-recognizer
       logger.error('Router navigation failed, and no previous location or fallbackRoute could be restored.');
     }
   }
+});
+define('aurelia-task-queue',['exports', 'aurelia-pal'], function (exports, _aureliaPal) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.TaskQueue = undefined;
+
+  
+
+  var hasSetImmediate = typeof setImmediate === 'function';
+
+  function makeRequestFlushFromMutationObserver(flush) {
+    var toggle = 1;
+    var observer = _aureliaPal.DOM.createMutationObserver(flush);
+    var node = _aureliaPal.DOM.createTextNode('');
+    observer.observe(node, { characterData: true });
+    return function requestFlush() {
+      toggle = -toggle;
+      node.data = toggle;
+    };
+  }
+
+  function makeRequestFlushFromTimer(flush) {
+    return function requestFlush() {
+      var timeoutHandle = setTimeout(handleFlushTimer, 0);
+
+      var intervalHandle = setInterval(handleFlushTimer, 50);
+      function handleFlushTimer() {
+        clearTimeout(timeoutHandle);
+        clearInterval(intervalHandle);
+        flush();
+      }
+    };
+  }
+
+  function onError(error, task) {
+    if ('onError' in task) {
+      task.onError(error);
+    } else if (hasSetImmediate) {
+      setImmediate(function () {
+        throw error;
+      });
+    } else {
+      setTimeout(function () {
+        throw error;
+      }, 0);
+    }
+  }
+
+  var TaskQueue = exports.TaskQueue = function () {
+    function TaskQueue() {
+      var _this = this;
+
+      
+
+      this.flushing = false;
+
+      this.microTaskQueue = [];
+      this.microTaskQueueCapacity = 1024;
+      this.taskQueue = [];
+
+      if (_aureliaPal.FEATURE.mutationObserver) {
+        this.requestFlushMicroTaskQueue = makeRequestFlushFromMutationObserver(function () {
+          return _this.flushMicroTaskQueue();
+        });
+      } else {
+        this.requestFlushMicroTaskQueue = makeRequestFlushFromTimer(function () {
+          return _this.flushMicroTaskQueue();
+        });
+      }
+
+      this.requestFlushTaskQueue = makeRequestFlushFromTimer(function () {
+        return _this.flushTaskQueue();
+      });
+    }
+
+    TaskQueue.prototype.queueMicroTask = function queueMicroTask(task) {
+      if (this.microTaskQueue.length < 1) {
+        this.requestFlushMicroTaskQueue();
+      }
+
+      this.microTaskQueue.push(task);
+    };
+
+    TaskQueue.prototype.queueTask = function queueTask(task) {
+      if (this.taskQueue.length < 1) {
+        this.requestFlushTaskQueue();
+      }
+
+      this.taskQueue.push(task);
+    };
+
+    TaskQueue.prototype.flushTaskQueue = function flushTaskQueue() {
+      var queue = this.taskQueue;
+      var index = 0;
+      var task = void 0;
+
+      this.taskQueue = [];
+
+      try {
+        this.flushing = true;
+        while (index < queue.length) {
+          task = queue[index];
+          task.call();
+          index++;
+        }
+      } catch (error) {
+        onError(error, task);
+      } finally {
+        this.flushing = false;
+      }
+    };
+
+    TaskQueue.prototype.flushMicroTaskQueue = function flushMicroTaskQueue() {
+      var queue = this.microTaskQueue;
+      var capacity = this.microTaskQueueCapacity;
+      var index = 0;
+      var task = void 0;
+
+      try {
+        this.flushing = true;
+        while (index < queue.length) {
+          task = queue[index];
+          task.call();
+          index++;
+
+          if (index > capacity) {
+            for (var scan = 0, newLength = queue.length - index; scan < newLength; scan++) {
+              queue[scan] = queue[scan + index];
+            }
+
+            queue.length -= index;
+            index = 0;
+          }
+        }
+      } catch (error) {
+        onError(error, task);
+      } finally {
+        this.flushing = false;
+      }
+
+      queue.length = 0;
+    };
+
+    return TaskQueue;
+  }();
 });
 define('aurelia-templating',['exports', 'aurelia-logging', 'aurelia-metadata', 'aurelia-pal', 'aurelia-path', 'aurelia-loader', 'aurelia-dependency-injection', 'aurelia-binding', 'aurelia-task-queue'], function (exports, _aureliaLogging, _aureliaMetadata, _aureliaPal, _aureliaPath, _aureliaLoader, _aureliaDependencyInjection, _aureliaBinding, _aureliaTaskQueue) {
   'use strict';
@@ -22934,154 +23082,6 @@ define('aurelia-templating',['exports', 'aurelia-logging', 'aurelia-metadata', '
     return TemplatingEngine;
   }()) || _class23);
 });
-define('aurelia-task-queue',['exports', 'aurelia-pal'], function (exports, _aureliaPal) {
-  'use strict';
-
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-  exports.TaskQueue = undefined;
-
-  
-
-  var hasSetImmediate = typeof setImmediate === 'function';
-
-  function makeRequestFlushFromMutationObserver(flush) {
-    var toggle = 1;
-    var observer = _aureliaPal.DOM.createMutationObserver(flush);
-    var node = _aureliaPal.DOM.createTextNode('');
-    observer.observe(node, { characterData: true });
-    return function requestFlush() {
-      toggle = -toggle;
-      node.data = toggle;
-    };
-  }
-
-  function makeRequestFlushFromTimer(flush) {
-    return function requestFlush() {
-      var timeoutHandle = setTimeout(handleFlushTimer, 0);
-
-      var intervalHandle = setInterval(handleFlushTimer, 50);
-      function handleFlushTimer() {
-        clearTimeout(timeoutHandle);
-        clearInterval(intervalHandle);
-        flush();
-      }
-    };
-  }
-
-  function onError(error, task) {
-    if ('onError' in task) {
-      task.onError(error);
-    } else if (hasSetImmediate) {
-      setImmediate(function () {
-        throw error;
-      });
-    } else {
-      setTimeout(function () {
-        throw error;
-      }, 0);
-    }
-  }
-
-  var TaskQueue = exports.TaskQueue = function () {
-    function TaskQueue() {
-      var _this = this;
-
-      
-
-      this.flushing = false;
-
-      this.microTaskQueue = [];
-      this.microTaskQueueCapacity = 1024;
-      this.taskQueue = [];
-
-      if (_aureliaPal.FEATURE.mutationObserver) {
-        this.requestFlushMicroTaskQueue = makeRequestFlushFromMutationObserver(function () {
-          return _this.flushMicroTaskQueue();
-        });
-      } else {
-        this.requestFlushMicroTaskQueue = makeRequestFlushFromTimer(function () {
-          return _this.flushMicroTaskQueue();
-        });
-      }
-
-      this.requestFlushTaskQueue = makeRequestFlushFromTimer(function () {
-        return _this.flushTaskQueue();
-      });
-    }
-
-    TaskQueue.prototype.queueMicroTask = function queueMicroTask(task) {
-      if (this.microTaskQueue.length < 1) {
-        this.requestFlushMicroTaskQueue();
-      }
-
-      this.microTaskQueue.push(task);
-    };
-
-    TaskQueue.prototype.queueTask = function queueTask(task) {
-      if (this.taskQueue.length < 1) {
-        this.requestFlushTaskQueue();
-      }
-
-      this.taskQueue.push(task);
-    };
-
-    TaskQueue.prototype.flushTaskQueue = function flushTaskQueue() {
-      var queue = this.taskQueue;
-      var index = 0;
-      var task = void 0;
-
-      this.taskQueue = [];
-
-      try {
-        this.flushing = true;
-        while (index < queue.length) {
-          task = queue[index];
-          task.call();
-          index++;
-        }
-      } catch (error) {
-        onError(error, task);
-      } finally {
-        this.flushing = false;
-      }
-    };
-
-    TaskQueue.prototype.flushMicroTaskQueue = function flushMicroTaskQueue() {
-      var queue = this.microTaskQueue;
-      var capacity = this.microTaskQueueCapacity;
-      var index = 0;
-      var task = void 0;
-
-      try {
-        this.flushing = true;
-        while (index < queue.length) {
-          task = queue[index];
-          task.call();
-          index++;
-
-          if (index > capacity) {
-            for (var scan = 0, newLength = queue.length - index; scan < newLength; scan++) {
-              queue[scan] = queue[scan + index];
-            }
-
-            queue.length -= index;
-            index = 0;
-          }
-        }
-      } catch (error) {
-        onError(error, task);
-      } finally {
-        this.flushing = false;
-      }
-
-      queue.length = 0;
-    };
-
-    return TaskQueue;
-  }();
-});
 define('aurelia-templating-binding',['exports', 'aurelia-logging', 'aurelia-binding', 'aurelia-templating'], function (exports, _aureliaLogging, _aureliaBinding, _aureliaTemplating) {
   'use strict';
 
@@ -23747,6 +23747,836 @@ define('aurelia-templating-binding',['exports', 'aurelia-logging', 'aurelia-bind
     config.container.registerSingleton(_aureliaTemplating.BindingLanguage, TemplatingBindingLanguage);
     config.container.registerAlias(_aureliaTemplating.BindingLanguage, TemplatingBindingLanguage);
   }
+});
+define('aurelia-http-client',['exports', 'aurelia-path', 'aurelia-pal'], function (exports, _aureliaPath, _aureliaPal) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.HttpClient = exports.RequestBuilder = exports.HttpRequestMessage = exports.JSONPRequestMessage = exports.RequestMessageProcessor = exports.mimeTypes = exports.HttpResponseMessage = exports.RequestMessage = exports.Headers = undefined;
+  exports.timeoutTransformer = timeoutTransformer;
+  exports.callbackParameterNameTransformer = callbackParameterNameTransformer;
+  exports.credentialsTransformer = credentialsTransformer;
+  exports.progressTransformer = progressTransformer;
+  exports.responseTypeTransformer = responseTypeTransformer;
+  exports.headerTransformer = headerTransformer;
+  exports.contentTransformer = contentTransformer;
+  exports.createJSONPRequestMessageProcessor = createJSONPRequestMessageProcessor;
+  exports.createHttpRequestMessageProcessor = createHttpRequestMessageProcessor;
+
+  function _possibleConstructorReturn(self, call) {
+    if (!self) {
+      throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+    }
+
+    return call && (typeof call === "object" || typeof call === "function") ? call : self;
+  }
+
+  function _inherits(subClass, superClass) {
+    if (typeof superClass !== "function" && superClass !== null) {
+      throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+    }
+
+    subClass.prototype = Object.create(superClass && superClass.prototype, {
+      constructor: {
+        value: subClass,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+    if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
+  }
+
+  var _createClass = function () {
+    function defineProperties(target, props) {
+      for (var i = 0; i < props.length; i++) {
+        var descriptor = props[i];
+        descriptor.enumerable = descriptor.enumerable || false;
+        descriptor.configurable = true;
+        if ("value" in descriptor) descriptor.writable = true;
+        Object.defineProperty(target, descriptor.key, descriptor);
+      }
+    }
+
+    return function (Constructor, protoProps, staticProps) {
+      if (protoProps) defineProperties(Constructor.prototype, protoProps);
+      if (staticProps) defineProperties(Constructor, staticProps);
+      return Constructor;
+    };
+  }();
+
+  
+
+  var Headers = exports.Headers = function () {
+    function Headers() {
+      var headers = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+      
+
+      this.headers = {};
+
+      for (var _key in headers) {
+        this.headers[_key.toLowerCase()] = { key: _key, value: headers[_key] };
+      }
+    }
+
+    Headers.prototype.add = function add(key, value) {
+      this.headers[key.toLowerCase()] = { key: key, value: value };
+    };
+
+    Headers.prototype.get = function get(key) {
+      var header = this.headers[key.toLowerCase()];
+      return header ? header.value : undefined;
+    };
+
+    Headers.prototype.clear = function clear() {
+      this.headers = {};
+    };
+
+    Headers.prototype.has = function has(header) {
+      return this.headers.hasOwnProperty(header.toLowerCase());
+    };
+
+    Headers.prototype.configureXHR = function configureXHR(xhr) {
+      for (var name in this.headers) {
+        if (this.headers.hasOwnProperty(name)) {
+          xhr.setRequestHeader(this.headers[name].key, this.headers[name].value);
+        }
+      }
+    };
+
+    Headers.parse = function parse(headerStr) {
+      var headers = new Headers();
+      if (!headerStr) {
+        return headers;
+      }
+
+      var headerPairs = headerStr.split('\r\n');
+      for (var i = 0; i < headerPairs.length; i++) {
+        var headerPair = headerPairs[i];
+
+        var index = headerPair.indexOf(': ');
+        if (index > 0) {
+          var _key2 = headerPair.substring(0, index);
+          var val = headerPair.substring(index + 2);
+          headers.add(_key2, val);
+        }
+      }
+
+      return headers;
+    };
+
+    return Headers;
+  }();
+
+  var RequestMessage = exports.RequestMessage = function () {
+    function RequestMessage(method, url, content, headers) {
+      
+
+      this.method = method;
+      this.url = url;
+      this.content = content;
+      this.headers = headers || new Headers();
+      this.baseUrl = '';
+    }
+
+    RequestMessage.prototype.buildFullUrl = function buildFullUrl() {
+      var absoluteUrl = /^([a-z][a-z0-9+\-.]*:)?\/\//i;
+      var url = absoluteUrl.test(this.url) ? this.url : (0, _aureliaPath.join)(this.baseUrl, this.url);
+
+      if (this.params) {
+        var qs = (0, _aureliaPath.buildQueryString)(this.params);
+        url = qs ? url + (this.url.indexOf('?') < 0 ? '?' : '&') + qs : url;
+      }
+
+      return url;
+    };
+
+    return RequestMessage;
+  }();
+
+  var HttpResponseMessage = exports.HttpResponseMessage = function () {
+    function HttpResponseMessage(requestMessage, xhr, responseType, reviver) {
+      
+
+      this.requestMessage = requestMessage;
+      this.statusCode = xhr.status;
+      this.response = xhr.response || xhr.responseText;
+      this.isSuccess = xhr.status >= 200 && xhr.status < 400;
+      this.statusText = xhr.statusText;
+      this.reviver = reviver;
+      this.mimeType = null;
+
+      if (xhr.getAllResponseHeaders) {
+        try {
+          this.headers = Headers.parse(xhr.getAllResponseHeaders());
+        } catch (err) {
+          if (xhr.requestHeaders) this.headers = new Headers(xhr.requestHeaders);
+        }
+      } else {
+        this.headers = new Headers();
+      }
+
+      var contentType = void 0;
+
+      if (this.headers && this.headers.headers) {
+        contentType = this.headers.get('Content-Type');
+      }
+
+      if (contentType) {
+        this.mimeType = responseType = contentType.split(';')[0].trim();
+        if (mimeTypes.hasOwnProperty(this.mimeType)) responseType = mimeTypes[this.mimeType];
+      }
+
+      this.responseType = responseType;
+    }
+
+    _createClass(HttpResponseMessage, [{
+      key: 'content',
+      get: function get() {
+        try {
+          if (this._content !== undefined) {
+            return this._content;
+          }
+
+          if (this.response === undefined || this.response === null || this.response === '') {
+            this._content = this.response;
+            return this._content;
+          }
+
+          if (this.responseType === 'json') {
+            this._content = JSON.parse(this.response, this.reviver);
+            return this._content;
+          }
+
+          if (this.reviver) {
+            this._content = this.reviver(this.response);
+            return this._content;
+          }
+
+          this._content = this.response;
+          return this._content;
+        } catch (e) {
+          if (this.isSuccess) {
+            throw e;
+          }
+
+          this._content = null;
+          return this._content;
+        }
+      }
+    }]);
+
+    return HttpResponseMessage;
+  }();
+
+  var mimeTypes = exports.mimeTypes = {
+    'text/html': 'html',
+    'text/javascript': 'js',
+    'application/javascript': 'js',
+    'text/json': 'json',
+    'application/json': 'json',
+    'application/rss+xml': 'rss',
+    'application/atom+xml': 'atom',
+    'application/xhtml+xml': 'xhtml',
+    'text/markdown': 'md',
+    'text/xml': 'xml',
+    'text/mathml': 'mml',
+    'application/xml': 'xml',
+    'text/yml': 'yml',
+    'text/csv': 'csv',
+    'text/css': 'css',
+    'text/less': 'less',
+    'text/stylus': 'styl',
+    'text/scss': 'scss',
+    'text/sass': 'sass',
+    'text/plain': 'txt'
+  };
+
+  function applyXhrTransformers(xhrTransformers, client, processor, message, xhr) {
+    var i = void 0;
+    var ii = void 0;
+
+    for (i = 0, ii = xhrTransformers.length; i < ii; ++i) {
+      xhrTransformers[i](client, processor, message, xhr);
+    }
+  }
+
+  var RequestMessageProcessor = exports.RequestMessageProcessor = function () {
+    function RequestMessageProcessor(xhrType, xhrTransformers) {
+      
+
+      this.XHRType = xhrType;
+      this.xhrTransformers = xhrTransformers;
+      this.isAborted = false;
+    }
+
+    RequestMessageProcessor.prototype.abort = function abort() {
+      if (this.xhr && this.xhr.readyState !== _aureliaPal.PLATFORM.XMLHttpRequest.UNSENT) {
+        this.xhr.abort();
+      }
+
+      this.isAborted = true;
+    };
+
+    RequestMessageProcessor.prototype.process = function process(client, requestMessage) {
+      var _this = this;
+
+      var promise = new Promise(function (resolve, reject) {
+        var xhr = _this.xhr = new _this.XHRType();
+
+        xhr.onload = function (e) {
+          var response = new HttpResponseMessage(requestMessage, xhr, requestMessage.responseType, requestMessage.reviver);
+          if (response.isSuccess) {
+            resolve(response);
+          } else {
+            reject(response);
+          }
+        };
+
+        xhr.ontimeout = function (e) {
+          reject(new HttpResponseMessage(requestMessage, {
+            response: e,
+            status: xhr.status,
+            statusText: xhr.statusText
+          }, 'timeout'));
+        };
+
+        xhr.onerror = function (e) {
+          reject(new HttpResponseMessage(requestMessage, {
+            response: e,
+            status: xhr.status,
+            statusText: xhr.statusText
+          }, 'error'));
+        };
+
+        xhr.onabort = function (e) {
+          reject(new HttpResponseMessage(requestMessage, {
+            response: e,
+            status: xhr.status,
+            statusText: xhr.statusText
+          }, 'abort'));
+        };
+      });
+
+      return Promise.resolve(requestMessage).then(function (message) {
+        var processRequest = function processRequest() {
+          if (_this.isAborted) {
+            _this.xhr.abort();
+          } else {
+            _this.xhr.open(message.method, message.buildFullUrl(), true, message.user, message.password);
+            applyXhrTransformers(_this.xhrTransformers, client, _this, message, _this.xhr);
+            if (typeof message.content === 'undefined') {
+              _this.xhr.send();
+            } else {
+              _this.xhr.send(message.content);
+            }
+          }
+
+          return promise;
+        };
+
+        var chain = [[processRequest, undefined]];
+
+        var interceptors = message.interceptors || [];
+        interceptors.forEach(function (interceptor) {
+          if (interceptor.request || interceptor.requestError) {
+            chain.unshift([interceptor.request ? interceptor.request.bind(interceptor) : undefined, interceptor.requestError ? interceptor.requestError.bind(interceptor) : undefined]);
+          }
+
+          if (interceptor.response || interceptor.responseError) {
+            chain.push([interceptor.response ? interceptor.response.bind(interceptor) : undefined, interceptor.responseError ? interceptor.responseError.bind(interceptor) : undefined]);
+          }
+        });
+
+        var interceptorsPromise = Promise.resolve(message);
+
+        while (chain.length) {
+          var _interceptorsPromise;
+
+          interceptorsPromise = (_interceptorsPromise = interceptorsPromise).then.apply(_interceptorsPromise, chain.shift());
+        }
+
+        return interceptorsPromise;
+      });
+    };
+
+    return RequestMessageProcessor;
+  }();
+
+  function timeoutTransformer(client, processor, message, xhr) {
+    if (message.timeout !== undefined) {
+      xhr.timeout = message.timeout;
+    }
+  }
+
+  function callbackParameterNameTransformer(client, processor, message, xhr) {
+    if (message.callbackParameterName !== undefined) {
+      xhr.callbackParameterName = message.callbackParameterName;
+    }
+  }
+
+  function credentialsTransformer(client, processor, message, xhr) {
+    if (message.withCredentials !== undefined) {
+      xhr.withCredentials = message.withCredentials;
+    }
+  }
+
+  function progressTransformer(client, processor, message, xhr) {
+    if (message.progressCallback) {
+      xhr.upload.onprogress = message.progressCallback;
+    }
+  }
+
+  function responseTypeTransformer(client, processor, message, xhr) {
+    var responseType = message.responseType;
+
+    if (responseType === 'json') {
+      responseType = 'text';
+    }
+
+    xhr.responseType = responseType;
+  }
+
+  function headerTransformer(client, processor, message, xhr) {
+    message.headers.configureXHR(xhr);
+  }
+
+  function contentTransformer(client, processor, message, xhr) {
+    if (message.skipContentProcessing) {
+      return;
+    }
+
+    if (_aureliaPal.PLATFORM.global.FormData && message.content instanceof FormData) {
+      return;
+    }
+
+    if (_aureliaPal.PLATFORM.global.Blob && message.content instanceof Blob) {
+      return;
+    }
+
+    if (_aureliaPal.PLATFORM.global.ArrayBufferView && message.content instanceof ArrayBufferView) {
+      return;
+    }
+
+    if (message.content instanceof Document) {
+      return;
+    }
+
+    if (typeof message.content === 'string') {
+      return;
+    }
+
+    if (message.content === null || message.content === undefined) {
+      return;
+    }
+
+    message.content = JSON.stringify(message.content, message.replacer);
+
+    if (!message.headers.has('Content-Type')) {
+      message.headers.add('Content-Type', 'application/json');
+    }
+  }
+
+  var JSONPRequestMessage = exports.JSONPRequestMessage = function (_RequestMessage) {
+    _inherits(JSONPRequestMessage, _RequestMessage);
+
+    function JSONPRequestMessage(url, callbackParameterName) {
+      
+
+      var _this2 = _possibleConstructorReturn(this, _RequestMessage.call(this, 'JSONP', url));
+
+      _this2.responseType = 'jsonp';
+      _this2.callbackParameterName = callbackParameterName;
+      return _this2;
+    }
+
+    return JSONPRequestMessage;
+  }(RequestMessage);
+
+  var JSONPXHR = function () {
+    function JSONPXHR() {
+      
+    }
+
+    JSONPXHR.prototype.open = function open(method, url) {
+      this.method = method;
+      this.url = url;
+      this.callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+    };
+
+    JSONPXHR.prototype.send = function send() {
+      var _this3 = this;
+
+      var url = this.url + (this.url.indexOf('?') >= 0 ? '&' : '?') + encodeURIComponent(this.callbackParameterName) + '=' + this.callbackName;
+      var script = _aureliaPal.DOM.createElement('script');
+
+      script.src = url;
+      script.onerror = function (e) {
+        cleanUp();
+
+        _this3.status = 0;
+        _this3.onerror(new Error('error'));
+      };
+
+      var cleanUp = function cleanUp() {
+        delete _aureliaPal.PLATFORM.global[_this3.callbackName];
+        _aureliaPal.DOM.removeNode(script);
+      };
+
+      _aureliaPal.PLATFORM.global[this.callbackName] = function (data) {
+        cleanUp();
+
+        if (_this3.status === undefined) {
+          _this3.status = 200;
+          _this3.statusText = 'OK';
+          _this3.response = data;
+          _this3.onload(_this3);
+        }
+      };
+
+      _aureliaPal.DOM.appendNode(script);
+
+      if (this.timeout !== undefined) {
+        setTimeout(function () {
+          if (_this3.status === undefined) {
+            _this3.status = 0;
+            _this3.ontimeout(new Error('timeout'));
+          }
+        }, this.timeout);
+      }
+    };
+
+    JSONPXHR.prototype.abort = function abort() {
+      if (this.status === undefined) {
+        this.status = 0;
+        this.onabort(new Error('abort'));
+      }
+    };
+
+    JSONPXHR.prototype.setRequestHeader = function setRequestHeader() {};
+
+    return JSONPXHR;
+  }();
+
+  function createJSONPRequestMessageProcessor() {
+    return new RequestMessageProcessor(JSONPXHR, [timeoutTransformer, callbackParameterNameTransformer]);
+  }
+
+  var HttpRequestMessage = exports.HttpRequestMessage = function (_RequestMessage2) {
+    _inherits(HttpRequestMessage, _RequestMessage2);
+
+    function HttpRequestMessage(method, url, content, headers) {
+      
+
+      var _this4 = _possibleConstructorReturn(this, _RequestMessage2.call(this, method, url, content, headers));
+
+      _this4.responseType = 'json';return _this4;
+    }
+
+    return HttpRequestMessage;
+  }(RequestMessage);
+
+  function createHttpRequestMessageProcessor() {
+    return new RequestMessageProcessor(_aureliaPal.PLATFORM.XMLHttpRequest, [timeoutTransformer, credentialsTransformer, progressTransformer, responseTypeTransformer, contentTransformer, headerTransformer]);
+  }
+
+  var RequestBuilder = exports.RequestBuilder = function () {
+    function RequestBuilder(client) {
+      
+
+      this.client = client;
+      this.transformers = client.requestTransformers.slice(0);
+      this.useJsonp = false;
+    }
+
+    RequestBuilder.prototype.asDelete = function asDelete() {
+      return this._addTransformer(function (client, processor, message) {
+        message.method = 'DELETE';
+      });
+    };
+
+    RequestBuilder.prototype.asGet = function asGet() {
+      return this._addTransformer(function (client, processor, message) {
+        message.method = 'GET';
+      });
+    };
+
+    RequestBuilder.prototype.asHead = function asHead() {
+      return this._addTransformer(function (client, processor, message) {
+        message.method = 'HEAD';
+      });
+    };
+
+    RequestBuilder.prototype.asOptions = function asOptions() {
+      return this._addTransformer(function (client, processor, message) {
+        message.method = 'OPTIONS';
+      });
+    };
+
+    RequestBuilder.prototype.asPatch = function asPatch() {
+      return this._addTransformer(function (client, processor, message) {
+        message.method = 'PATCH';
+      });
+    };
+
+    RequestBuilder.prototype.asPost = function asPost() {
+      return this._addTransformer(function (client, processor, message) {
+        message.method = 'POST';
+      });
+    };
+
+    RequestBuilder.prototype.asPut = function asPut() {
+      return this._addTransformer(function (client, processor, message) {
+        message.method = 'PUT';
+      });
+    };
+
+    RequestBuilder.prototype.asJsonp = function asJsonp(callbackParameterName) {
+      this.useJsonp = true;
+      return this._addTransformer(function (client, processor, message) {
+        message.callbackParameterName = callbackParameterName;
+      });
+    };
+
+    RequestBuilder.prototype.withUrl = function withUrl(url) {
+      return this._addTransformer(function (client, processor, message) {
+        message.url = url;
+      });
+    };
+
+    RequestBuilder.prototype.withContent = function withContent(content) {
+      return this._addTransformer(function (client, processor, message) {
+        message.content = content;
+      });
+    };
+
+    RequestBuilder.prototype.withBaseUrl = function withBaseUrl(baseUrl) {
+      return this._addTransformer(function (client, processor, message) {
+        message.baseUrl = baseUrl;
+      });
+    };
+
+    RequestBuilder.prototype.withParams = function withParams(params) {
+      return this._addTransformer(function (client, processor, message) {
+        message.params = params;
+      });
+    };
+
+    RequestBuilder.prototype.withResponseType = function withResponseType(responseType) {
+      return this._addTransformer(function (client, processor, message) {
+        message.responseType = responseType;
+      });
+    };
+
+    RequestBuilder.prototype.withTimeout = function withTimeout(timeout) {
+      return this._addTransformer(function (client, processor, message) {
+        message.timeout = timeout;
+      });
+    };
+
+    RequestBuilder.prototype.withHeader = function withHeader(key, value) {
+      return this._addTransformer(function (client, processor, message) {
+        message.headers.add(key, value);
+      });
+    };
+
+    RequestBuilder.prototype.withCredentials = function withCredentials(value) {
+      return this._addTransformer(function (client, processor, message) {
+        message.withCredentials = value;
+      });
+    };
+
+    RequestBuilder.prototype.withLogin = function withLogin(user, password) {
+      return this._addTransformer(function (client, processor, message) {
+        message.user = user;message.password = password;
+      });
+    };
+
+    RequestBuilder.prototype.withReviver = function withReviver(reviver) {
+      return this._addTransformer(function (client, processor, message) {
+        message.reviver = reviver;
+      });
+    };
+
+    RequestBuilder.prototype.withReplacer = function withReplacer(replacer) {
+      return this._addTransformer(function (client, processor, message) {
+        message.replacer = replacer;
+      });
+    };
+
+    RequestBuilder.prototype.withProgressCallback = function withProgressCallback(progressCallback) {
+      return this._addTransformer(function (client, processor, message) {
+        message.progressCallback = progressCallback;
+      });
+    };
+
+    RequestBuilder.prototype.withCallbackParameterName = function withCallbackParameterName(callbackParameterName) {
+      return this._addTransformer(function (client, processor, message) {
+        message.callbackParameterName = callbackParameterName;
+      });
+    };
+
+    RequestBuilder.prototype.withInterceptor = function withInterceptor(interceptor) {
+      return this._addTransformer(function (client, processor, message) {
+        message.interceptors = message.interceptors || [];
+        message.interceptors.unshift(interceptor);
+      });
+    };
+
+    RequestBuilder.prototype.skipContentProcessing = function skipContentProcessing() {
+      return this._addTransformer(function (client, processor, message) {
+        message.skipContentProcessing = true;
+      });
+    };
+
+    RequestBuilder.prototype._addTransformer = function _addTransformer(fn) {
+      this.transformers.push(fn);
+      return this;
+    };
+
+    RequestBuilder.addHelper = function addHelper(name, fn) {
+      RequestBuilder.prototype[name] = function () {
+        return this._addTransformer(fn.apply(this, arguments));
+      };
+    };
+
+    RequestBuilder.prototype.send = function send() {
+      var message = this.useJsonp ? new JSONPRequestMessage() : new HttpRequestMessage();
+      return this.client.send(message, this.transformers);
+    };
+
+    return RequestBuilder;
+  }();
+
+  function trackRequestStart(client, processor) {
+    client.pendingRequests.push(processor);
+    client.isRequesting = true;
+  }
+
+  function trackRequestEnd(client, processor) {
+    var index = client.pendingRequests.indexOf(processor);
+
+    client.pendingRequests.splice(index, 1);
+    client.isRequesting = client.pendingRequests.length > 0;
+
+    if (!client.isRequesting) {
+      (function () {
+        var evt = _aureliaPal.DOM.createCustomEvent('aurelia-http-client-requests-drained', { bubbles: true, cancelable: true });
+        setTimeout(function () {
+          return _aureliaPal.DOM.dispatchEvent(evt);
+        }, 1);
+      })();
+    }
+  }
+
+  var HttpClient = exports.HttpClient = function () {
+    function HttpClient() {
+      
+
+      this.isRequesting = false;
+
+      this.requestTransformers = [];
+      this.requestProcessorFactories = new Map();
+      this.requestProcessorFactories.set(HttpRequestMessage, createHttpRequestMessageProcessor);
+      this.requestProcessorFactories.set(JSONPRequestMessage, createJSONPRequestMessageProcessor);
+      this.pendingRequests = [];
+    }
+
+    HttpClient.prototype.configure = function configure(fn) {
+      var builder = new RequestBuilder(this);
+      fn(builder);
+      this.requestTransformers = builder.transformers;
+      return this;
+    };
+
+    HttpClient.prototype.createRequest = function createRequest(url) {
+      var builder = new RequestBuilder(this);
+
+      if (url) {
+        builder.withUrl(url);
+      }
+
+      return builder;
+    };
+
+    HttpClient.prototype.send = function send(requestMessage, transformers) {
+      var _this5 = this;
+
+      var createProcessor = this.requestProcessorFactories.get(requestMessage.constructor);
+      var processor = void 0;
+      var promise = void 0;
+      var i = void 0;
+      var ii = void 0;
+
+      if (!createProcessor) {
+        throw new Error('No request message processor factory for ' + requestMessage.constructor + '.');
+      }
+
+      processor = createProcessor();
+      trackRequestStart(this, processor);
+
+      transformers = transformers || this.requestTransformers;
+
+      promise = Promise.resolve(requestMessage).then(function (message) {
+        for (i = 0, ii = transformers.length; i < ii; ++i) {
+          transformers[i](_this5, processor, message);
+        }
+
+        return processor.process(_this5, message).then(function (response) {
+          trackRequestEnd(_this5, processor);
+          return response;
+        }).catch(function (response) {
+          trackRequestEnd(_this5, processor);
+          throw response;
+        });
+      });
+
+      promise.abort = promise.cancel = function () {
+        processor.abort();
+      };
+
+      return promise;
+    };
+
+    HttpClient.prototype.delete = function _delete(url) {
+      return this.createRequest(url).asDelete().send();
+    };
+
+    HttpClient.prototype.get = function get(url) {
+      return this.createRequest(url).asGet().send();
+    };
+
+    HttpClient.prototype.head = function head(url) {
+      return this.createRequest(url).asHead().send();
+    };
+
+    HttpClient.prototype.jsonp = function jsonp(url) {
+      var callbackParameterName = arguments.length <= 1 || arguments[1] === undefined ? 'jsoncallback' : arguments[1];
+
+      return this.createRequest(url).asJsonp(callbackParameterName).send();
+    };
+
+    HttpClient.prototype.options = function options(url) {
+      return this.createRequest(url).asOptions().send();
+    };
+
+    HttpClient.prototype.put = function put(url, content) {
+      return this.createRequest(url).asPut().withContent(content).send();
+    };
+
+    HttpClient.prototype.patch = function patch(url, content) {
+      return this.createRequest(url).asPatch().withContent(content).send();
+    };
+
+    HttpClient.prototype.post = function post(url, content) {
+      return this.createRequest(url).asPost().withContent(content).send();
+    };
+
+    return HttpClient;
+  }();
 });
 define('text',{});
 // https://d3js.org Version 4.4.0. Copyright 2016 Mike Bostock.
@@ -40144,6 +40974,430 @@ Object.defineProperty(exports, '__esModule', { value: true });
 })));
 ;define('d3', ['d3/d3'], function (main) { return main; });
 
+define('aurelia-templating-router/aurelia-templating-router',['exports', 'aurelia-router', './route-loader', './router-view', './route-href'], function (exports, _aureliaRouter, _routeLoader, _routerView, _routeHref) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.configure = exports.RouteHref = exports.RouterView = exports.TemplatingRouteLoader = undefined;
+
+
+  function configure(config) {
+    config.singleton(_aureliaRouter.RouteLoader, _routeLoader.TemplatingRouteLoader).singleton(_aureliaRouter.Router, _aureliaRouter.AppRouter).globalResources('./router-view', './route-href');
+
+    config.container.registerAlias(_aureliaRouter.Router, _aureliaRouter.AppRouter);
+  }
+
+  exports.TemplatingRouteLoader = _routeLoader.TemplatingRouteLoader;
+  exports.RouterView = _routerView.RouterView;
+  exports.RouteHref = _routeHref.RouteHref;
+  exports.configure = configure;
+});;define('aurelia-templating-router', ['aurelia-templating-router/aurelia-templating-router'], function (main) { return main; });
+
+define('aurelia-templating-router/route-loader',['exports', 'aurelia-dependency-injection', 'aurelia-templating', 'aurelia-router', 'aurelia-path', 'aurelia-metadata'], function (exports, _aureliaDependencyInjection, _aureliaTemplating, _aureliaRouter, _aureliaPath, _aureliaMetadata) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.TemplatingRouteLoader = undefined;
+
+  
+
+  function _possibleConstructorReturn(self, call) {
+    if (!self) {
+      throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+    }
+
+    return call && (typeof call === "object" || typeof call === "function") ? call : self;
+  }
+
+  function _inherits(subClass, superClass) {
+    if (typeof superClass !== "function" && superClass !== null) {
+      throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+    }
+
+    subClass.prototype = Object.create(superClass && superClass.prototype, {
+      constructor: {
+        value: subClass,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+    if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
+  }
+
+  var _dec, _class;
+
+  var TemplatingRouteLoader = exports.TemplatingRouteLoader = (_dec = (0, _aureliaDependencyInjection.inject)(_aureliaTemplating.CompositionEngine), _dec(_class = function (_RouteLoader) {
+    _inherits(TemplatingRouteLoader, _RouteLoader);
+
+    function TemplatingRouteLoader(compositionEngine) {
+      
+
+      var _this = _possibleConstructorReturn(this, _RouteLoader.call(this));
+
+      _this.compositionEngine = compositionEngine;
+      return _this;
+    }
+
+    TemplatingRouteLoader.prototype.loadRoute = function loadRoute(router, config) {
+      var childContainer = router.container.createChild();
+      var instruction = {
+        viewModel: (0, _aureliaPath.relativeToFile)(config.moduleId, _aureliaMetadata.Origin.get(router.container.viewModel.constructor).moduleId),
+        childContainer: childContainer,
+        view: config.view || config.viewStrategy,
+        router: router
+      };
+
+      childContainer.getChildRouter = function () {
+        var childRouter = void 0;
+
+        childContainer.registerHandler(_aureliaRouter.Router, function (c) {
+          return childRouter || (childRouter = router.createChild(childContainer));
+        });
+
+        return childContainer.get(_aureliaRouter.Router);
+      };
+
+      return this.compositionEngine.ensureViewModel(instruction);
+    };
+
+    return TemplatingRouteLoader;
+  }(_aureliaRouter.RouteLoader)) || _class);
+});
+define('aurelia-templating-router/router-view',['exports', 'aurelia-dependency-injection', 'aurelia-binding', 'aurelia-templating', 'aurelia-router', 'aurelia-metadata', 'aurelia-pal'], function (exports, _aureliaDependencyInjection, _aureliaBinding, _aureliaTemplating, _aureliaRouter, _aureliaMetadata, _aureliaPal) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.RouterView = undefined;
+
+  function _initDefineProp(target, property, descriptor, context) {
+    if (!descriptor) return;
+    Object.defineProperty(target, property, {
+      enumerable: descriptor.enumerable,
+      configurable: descriptor.configurable,
+      writable: descriptor.writable,
+      value: descriptor.initializer ? descriptor.initializer.call(context) : void 0
+    });
+  }
+
+  function _applyDecoratedDescriptor(target, property, decorators, descriptor, context) {
+    var desc = {};
+    Object['ke' + 'ys'](descriptor).forEach(function (key) {
+      desc[key] = descriptor[key];
+    });
+    desc.enumerable = !!desc.enumerable;
+    desc.configurable = !!desc.configurable;
+
+    if ('value' in desc || desc.initializer) {
+      desc.writable = true;
+    }
+
+    desc = decorators.slice().reverse().reduce(function (desc, decorator) {
+      return decorator(target, property, desc) || desc;
+    }, desc);
+
+    if (context && desc.initializer !== void 0) {
+      desc.value = desc.initializer ? desc.initializer.call(context) : void 0;
+      desc.initializer = undefined;
+    }
+
+    if (desc.initializer === void 0) {
+      Object['define' + 'Property'](target, property, desc);
+      desc = null;
+    }
+
+    return desc;
+  }
+
+  function _initializerWarningHelper(descriptor, context) {
+    throw new Error('Decorating class property failed. Please ensure that transform-class-properties is enabled.');
+  }
+
+  var _dec, _dec2, _class, _desc, _value, _class2, _descriptor, _descriptor2, _descriptor3, _descriptor4;
+
+  
+
+  var SwapStrategies = function () {
+    function SwapStrategies() {
+      
+    }
+
+    SwapStrategies.prototype.before = function before(viewSlot, previousView, callback) {
+      var promise = Promise.resolve(callback());
+
+      if (previousView !== undefined) {
+        return promise.then(function () {
+          return viewSlot.remove(previousView, true);
+        });
+      }
+
+      return promise;
+    };
+
+    SwapStrategies.prototype.with = function _with(viewSlot, previousView, callback) {
+      var promise = Promise.resolve(callback());
+
+      if (previousView !== undefined) {
+        return Promise.all([viewSlot.remove(previousView, true), promise]);
+      }
+
+      return promise;
+    };
+
+    SwapStrategies.prototype.after = function after(viewSlot, previousView, callback) {
+      return Promise.resolve(viewSlot.removeAll(true)).then(callback);
+    };
+
+    return SwapStrategies;
+  }();
+
+  var swapStrategies = new SwapStrategies();
+
+  var RouterView = exports.RouterView = (_dec = (0, _aureliaTemplating.customElement)('router-view'), _dec2 = (0, _aureliaDependencyInjection.inject)(_aureliaPal.DOM.Element, _aureliaDependencyInjection.Container, _aureliaTemplating.ViewSlot, _aureliaRouter.Router, _aureliaTemplating.ViewLocator, _aureliaTemplating.CompositionTransaction, _aureliaTemplating.CompositionEngine), _dec(_class = (0, _aureliaTemplating.noView)(_class = _dec2(_class = (_class2 = function () {
+    function RouterView(element, container, viewSlot, router, viewLocator, compositionTransaction, compositionEngine) {
+      
+
+      _initDefineProp(this, 'swapOrder', _descriptor, this);
+
+      _initDefineProp(this, 'layoutView', _descriptor2, this);
+
+      _initDefineProp(this, 'layoutViewModel', _descriptor3, this);
+
+      _initDefineProp(this, 'layoutModel', _descriptor4, this);
+
+      this.element = element;
+      this.container = container;
+      this.viewSlot = viewSlot;
+      this.router = router;
+      this.viewLocator = viewLocator;
+      this.compositionTransaction = compositionTransaction;
+      this.compositionEngine = compositionEngine;
+      this.router.registerViewPort(this, this.element.getAttribute('name'));
+
+      if (!('initialComposition' in compositionTransaction)) {
+        compositionTransaction.initialComposition = true;
+        this.compositionTransactionNotifier = compositionTransaction.enlist();
+      }
+    }
+
+    RouterView.prototype.created = function created(owningView) {
+      this.owningView = owningView;
+    };
+
+    RouterView.prototype.bind = function bind(bindingContext, overrideContext) {
+      this.container.viewModel = bindingContext;
+      this.overrideContext = overrideContext;
+    };
+
+    RouterView.prototype.process = function process(viewPortInstruction, waitToSwap) {
+      var _this = this;
+
+      var component = viewPortInstruction.component;
+      var childContainer = component.childContainer;
+      var viewModel = component.viewModel;
+      var viewModelResource = component.viewModelResource;
+      var metadata = viewModelResource.metadata;
+      var config = component.router.currentInstruction.config;
+      var viewPort = config.viewPorts ? config.viewPorts[viewPortInstruction.name] : {};
+
+      var layoutInstruction = {
+        viewModel: viewPort.layoutViewModel || config.layoutViewModel || this.layoutViewModel,
+        view: viewPort.layoutView || config.layoutView || this.layoutView,
+        model: viewPort.layoutModel || config.layoutModel || this.layoutModel,
+        router: viewPortInstruction.component.router,
+        childContainer: childContainer,
+        viewSlot: this.viewSlot
+      };
+
+      var viewStrategy = this.viewLocator.getViewStrategy(component.view || viewModel);
+      if (viewStrategy && component.view) {
+        viewStrategy.makeRelativeTo(_aureliaMetadata.Origin.get(component.router.container.viewModel.constructor).moduleId);
+      }
+
+      return metadata.load(childContainer, viewModelResource.value, null, viewStrategy, true).then(function (viewFactory) {
+        if (!_this.compositionTransactionNotifier) {
+          _this.compositionTransactionOwnershipToken = _this.compositionTransaction.tryCapture();
+        }
+
+        if (layoutInstruction.viewModel || layoutInstruction.view) {
+          viewPortInstruction.layoutInstruction = layoutInstruction;
+        }
+
+        viewPortInstruction.controller = metadata.create(childContainer, _aureliaTemplating.BehaviorInstruction.dynamic(_this.element, viewModel, viewFactory));
+
+        if (waitToSwap) {
+          return;
+        }
+
+        _this.swap(viewPortInstruction);
+      });
+    };
+
+    RouterView.prototype.swap = function swap(viewPortInstruction) {
+      var _this2 = this;
+
+      var layoutInstruction = viewPortInstruction.layoutInstruction;
+
+      var work = function work() {
+        var previousView = _this2.view;
+        var swapStrategy = void 0;
+        var viewSlot = _this2.viewSlot;
+
+        swapStrategy = _this2.swapOrder in swapStrategies ? swapStrategies[_this2.swapOrder] : swapStrategies.after;
+
+        swapStrategy(viewSlot, previousView, function () {
+          return Promise.resolve().then(function () {
+            return viewSlot.add(_this2.view);
+          }).then(function () {
+            _this2._notify();
+          });
+        });
+      };
+
+      var ready = function ready(owningView) {
+        viewPortInstruction.controller.automate(_this2.overrideContext, owningView);
+        if (_this2.compositionTransactionOwnershipToken) {
+          return _this2.compositionTransactionOwnershipToken.waitForCompositionComplete().then(function () {
+            _this2.compositionTransactionOwnershipToken = null;
+            return work();
+          });
+        }
+
+        return work();
+      };
+
+      if (layoutInstruction) {
+        if (!layoutInstruction.viewModel) {
+          layoutInstruction.viewModel = {};
+        }
+
+        return this.compositionEngine.createController(layoutInstruction).then(function (controller) {
+          _aureliaTemplating.ShadowDOM.distributeView(viewPortInstruction.controller.view, controller.slots || controller.view.slots);
+          controller.automate((0, _aureliaBinding.createOverrideContext)(layoutInstruction.viewModel), _this2.owningView);
+          controller.view.children.push(viewPortInstruction.controller.view);
+          return controller.view || controller;
+        }).then(function (newView) {
+          _this2.view = newView;
+          return ready(newView);
+        });
+      }
+
+      this.view = viewPortInstruction.controller.view;
+
+      return ready(this.owningView);
+    };
+
+    RouterView.prototype._notify = function _notify() {
+      if (this.compositionTransactionNotifier) {
+        this.compositionTransactionNotifier.done();
+        this.compositionTransactionNotifier = null;
+      }
+    };
+
+    return RouterView;
+  }(), (_descriptor = _applyDecoratedDescriptor(_class2.prototype, 'swapOrder', [_aureliaTemplating.bindable], {
+    enumerable: true,
+    initializer: null
+  }), _descriptor2 = _applyDecoratedDescriptor(_class2.prototype, 'layoutView', [_aureliaTemplating.bindable], {
+    enumerable: true,
+    initializer: null
+  }), _descriptor3 = _applyDecoratedDescriptor(_class2.prototype, 'layoutViewModel', [_aureliaTemplating.bindable], {
+    enumerable: true,
+    initializer: null
+  }), _descriptor4 = _applyDecoratedDescriptor(_class2.prototype, 'layoutModel', [_aureliaTemplating.bindable], {
+    enumerable: true,
+    initializer: null
+  })), _class2)) || _class) || _class) || _class);
+});
+define('aurelia-templating-router/route-href',['exports', 'aurelia-templating', 'aurelia-dependency-injection', 'aurelia-router', 'aurelia-pal', 'aurelia-logging'], function (exports, _aureliaTemplating, _aureliaDependencyInjection, _aureliaRouter, _aureliaPal, _aureliaLogging) {
+  'use strict';
+
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.RouteHref = undefined;
+
+  var LogManager = _interopRequireWildcard(_aureliaLogging);
+
+  function _interopRequireWildcard(obj) {
+    if (obj && obj.__esModule) {
+      return obj;
+    } else {
+      var newObj = {};
+
+      if (obj != null) {
+        for (var key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
+        }
+      }
+
+      newObj.default = obj;
+      return newObj;
+    }
+  }
+
+  
+
+  var _dec, _dec2, _dec3, _dec4, _dec5, _class;
+
+  var logger = LogManager.getLogger('route-href');
+
+  var RouteHref = exports.RouteHref = (_dec = (0, _aureliaTemplating.customAttribute)('route-href'), _dec2 = (0, _aureliaTemplating.bindable)({ name: 'route', changeHandler: 'processChange' }), _dec3 = (0, _aureliaTemplating.bindable)({ name: 'params', changeHandler: 'processChange' }), _dec4 = (0, _aureliaTemplating.bindable)({ name: 'attribute', defaultValue: 'href' }), _dec5 = (0, _aureliaDependencyInjection.inject)(_aureliaRouter.Router, _aureliaPal.DOM.Element), _dec(_class = _dec2(_class = _dec3(_class = _dec4(_class = _dec5(_class = function () {
+    function RouteHref(router, element) {
+      
+
+      this.router = router;
+      this.element = element;
+    }
+
+    RouteHref.prototype.bind = function bind() {
+      this.isActive = true;
+      this.processChange();
+    };
+
+    RouteHref.prototype.unbind = function unbind() {
+      this.isActive = false;
+    };
+
+    RouteHref.prototype.attributeChanged = function attributeChanged(value, previous) {
+      if (previous) {
+        this.element.removeAttribute(previous);
+      }
+
+      this.processChange();
+    };
+
+    RouteHref.prototype.processChange = function processChange() {
+      var _this = this;
+
+      return this.router.ensureConfigured().then(function () {
+        if (!_this.isActive) {
+          return null;
+        }
+
+        var href = _this.router.generate(_this.route, _this.params);
+
+        if (_this.element.au.controller) {
+          _this.element.au.controller.viewModel[_this.attribute] = href;
+        } else {
+          _this.element.setAttribute(_this.attribute, href);
+        }
+
+        return null;
+      }).catch(function (reason) {
+        logger.error(reason);
+      });
+    };
+
+    return RouteHref;
+  }()) || _class) || _class) || _class) || _class) || _class);
+});
 define('aurelia-templating-resources/aurelia-templating-resources',['exports', './compose', './if', './with', './repeat', './show', './hide', './sanitize-html', './replaceable', './focus', 'aurelia-templating', './css-resource', './html-sanitizer', './attr-binding-behavior', './binding-mode-behaviors', './throttle-binding-behavior', './debounce-binding-behavior', './signal-binding-behavior', './binding-signaler', './update-trigger-binding-behavior', './abstract-repeater', './repeat-strategy-locator', './html-resource-plugin', './null-repeat-strategy', './array-repeat-strategy', './map-repeat-strategy', './set-repeat-strategy', './number-repeat-strategy', './repeat-utilities', './analyze-view-factory', './aurelia-hide-style'], function (exports, _compose, _if, _with, _repeat, _show, _hide, _sanitizeHtml, _replaceable, _focus, _aureliaTemplating, _cssResource, _htmlSanitizer, _attrBindingBehavior, _bindingModeBehaviors, _throttleBindingBehavior, _debounceBindingBehavior, _signalBindingBehavior, _bindingSignaler, _updateTriggerBindingBehavior, _abstractRepeater, _repeatStrategyLocator, _htmlResourcePlugin, _nullRepeatStrategy, _arrayRepeatStrategy, _mapRepeatStrategy, _setRepeatStrategy, _numberRepeatStrategy, _repeatUtilities, _analyzeViewFactory, _aureliaHideStyle) {
   'use strict';
 
@@ -42524,430 +43778,6 @@ define('aurelia-templating-resources/dynamic-element',['exports', 'aurelia-templ
     return DynamicElement;
   }
 });
-define('aurelia-templating-router/aurelia-templating-router',['exports', 'aurelia-router', './route-loader', './router-view', './route-href'], function (exports, _aureliaRouter, _routeLoader, _routerView, _routeHref) {
-  'use strict';
-
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-  exports.configure = exports.RouteHref = exports.RouterView = exports.TemplatingRouteLoader = undefined;
-
-
-  function configure(config) {
-    config.singleton(_aureliaRouter.RouteLoader, _routeLoader.TemplatingRouteLoader).singleton(_aureliaRouter.Router, _aureliaRouter.AppRouter).globalResources('./router-view', './route-href');
-
-    config.container.registerAlias(_aureliaRouter.Router, _aureliaRouter.AppRouter);
-  }
-
-  exports.TemplatingRouteLoader = _routeLoader.TemplatingRouteLoader;
-  exports.RouterView = _routerView.RouterView;
-  exports.RouteHref = _routeHref.RouteHref;
-  exports.configure = configure;
-});;define('aurelia-templating-router', ['aurelia-templating-router/aurelia-templating-router'], function (main) { return main; });
-
-define('aurelia-templating-router/route-loader',['exports', 'aurelia-dependency-injection', 'aurelia-templating', 'aurelia-router', 'aurelia-path', 'aurelia-metadata'], function (exports, _aureliaDependencyInjection, _aureliaTemplating, _aureliaRouter, _aureliaPath, _aureliaMetadata) {
-  'use strict';
-
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-  exports.TemplatingRouteLoader = undefined;
-
-  
-
-  function _possibleConstructorReturn(self, call) {
-    if (!self) {
-      throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-    }
-
-    return call && (typeof call === "object" || typeof call === "function") ? call : self;
-  }
-
-  function _inherits(subClass, superClass) {
-    if (typeof superClass !== "function" && superClass !== null) {
-      throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
-    }
-
-    subClass.prototype = Object.create(superClass && superClass.prototype, {
-      constructor: {
-        value: subClass,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-    if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
-  }
-
-  var _dec, _class;
-
-  var TemplatingRouteLoader = exports.TemplatingRouteLoader = (_dec = (0, _aureliaDependencyInjection.inject)(_aureliaTemplating.CompositionEngine), _dec(_class = function (_RouteLoader) {
-    _inherits(TemplatingRouteLoader, _RouteLoader);
-
-    function TemplatingRouteLoader(compositionEngine) {
-      
-
-      var _this = _possibleConstructorReturn(this, _RouteLoader.call(this));
-
-      _this.compositionEngine = compositionEngine;
-      return _this;
-    }
-
-    TemplatingRouteLoader.prototype.loadRoute = function loadRoute(router, config) {
-      var childContainer = router.container.createChild();
-      var instruction = {
-        viewModel: (0, _aureliaPath.relativeToFile)(config.moduleId, _aureliaMetadata.Origin.get(router.container.viewModel.constructor).moduleId),
-        childContainer: childContainer,
-        view: config.view || config.viewStrategy,
-        router: router
-      };
-
-      childContainer.getChildRouter = function () {
-        var childRouter = void 0;
-
-        childContainer.registerHandler(_aureliaRouter.Router, function (c) {
-          return childRouter || (childRouter = router.createChild(childContainer));
-        });
-
-        return childContainer.get(_aureliaRouter.Router);
-      };
-
-      return this.compositionEngine.ensureViewModel(instruction);
-    };
-
-    return TemplatingRouteLoader;
-  }(_aureliaRouter.RouteLoader)) || _class);
-});
-define('aurelia-templating-router/router-view',['exports', 'aurelia-dependency-injection', 'aurelia-binding', 'aurelia-templating', 'aurelia-router', 'aurelia-metadata', 'aurelia-pal'], function (exports, _aureliaDependencyInjection, _aureliaBinding, _aureliaTemplating, _aureliaRouter, _aureliaMetadata, _aureliaPal) {
-  'use strict';
-
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-  exports.RouterView = undefined;
-
-  function _initDefineProp(target, property, descriptor, context) {
-    if (!descriptor) return;
-    Object.defineProperty(target, property, {
-      enumerable: descriptor.enumerable,
-      configurable: descriptor.configurable,
-      writable: descriptor.writable,
-      value: descriptor.initializer ? descriptor.initializer.call(context) : void 0
-    });
-  }
-
-  function _applyDecoratedDescriptor(target, property, decorators, descriptor, context) {
-    var desc = {};
-    Object['ke' + 'ys'](descriptor).forEach(function (key) {
-      desc[key] = descriptor[key];
-    });
-    desc.enumerable = !!desc.enumerable;
-    desc.configurable = !!desc.configurable;
-
-    if ('value' in desc || desc.initializer) {
-      desc.writable = true;
-    }
-
-    desc = decorators.slice().reverse().reduce(function (desc, decorator) {
-      return decorator(target, property, desc) || desc;
-    }, desc);
-
-    if (context && desc.initializer !== void 0) {
-      desc.value = desc.initializer ? desc.initializer.call(context) : void 0;
-      desc.initializer = undefined;
-    }
-
-    if (desc.initializer === void 0) {
-      Object['define' + 'Property'](target, property, desc);
-      desc = null;
-    }
-
-    return desc;
-  }
-
-  function _initializerWarningHelper(descriptor, context) {
-    throw new Error('Decorating class property failed. Please ensure that transform-class-properties is enabled.');
-  }
-
-  var _dec, _dec2, _class, _desc, _value, _class2, _descriptor, _descriptor2, _descriptor3, _descriptor4;
-
-  
-
-  var SwapStrategies = function () {
-    function SwapStrategies() {
-      
-    }
-
-    SwapStrategies.prototype.before = function before(viewSlot, previousView, callback) {
-      var promise = Promise.resolve(callback());
-
-      if (previousView !== undefined) {
-        return promise.then(function () {
-          return viewSlot.remove(previousView, true);
-        });
-      }
-
-      return promise;
-    };
-
-    SwapStrategies.prototype.with = function _with(viewSlot, previousView, callback) {
-      var promise = Promise.resolve(callback());
-
-      if (previousView !== undefined) {
-        return Promise.all([viewSlot.remove(previousView, true), promise]);
-      }
-
-      return promise;
-    };
-
-    SwapStrategies.prototype.after = function after(viewSlot, previousView, callback) {
-      return Promise.resolve(viewSlot.removeAll(true)).then(callback);
-    };
-
-    return SwapStrategies;
-  }();
-
-  var swapStrategies = new SwapStrategies();
-
-  var RouterView = exports.RouterView = (_dec = (0, _aureliaTemplating.customElement)('router-view'), _dec2 = (0, _aureliaDependencyInjection.inject)(_aureliaPal.DOM.Element, _aureliaDependencyInjection.Container, _aureliaTemplating.ViewSlot, _aureliaRouter.Router, _aureliaTemplating.ViewLocator, _aureliaTemplating.CompositionTransaction, _aureliaTemplating.CompositionEngine), _dec(_class = (0, _aureliaTemplating.noView)(_class = _dec2(_class = (_class2 = function () {
-    function RouterView(element, container, viewSlot, router, viewLocator, compositionTransaction, compositionEngine) {
-      
-
-      _initDefineProp(this, 'swapOrder', _descriptor, this);
-
-      _initDefineProp(this, 'layoutView', _descriptor2, this);
-
-      _initDefineProp(this, 'layoutViewModel', _descriptor3, this);
-
-      _initDefineProp(this, 'layoutModel', _descriptor4, this);
-
-      this.element = element;
-      this.container = container;
-      this.viewSlot = viewSlot;
-      this.router = router;
-      this.viewLocator = viewLocator;
-      this.compositionTransaction = compositionTransaction;
-      this.compositionEngine = compositionEngine;
-      this.router.registerViewPort(this, this.element.getAttribute('name'));
-
-      if (!('initialComposition' in compositionTransaction)) {
-        compositionTransaction.initialComposition = true;
-        this.compositionTransactionNotifier = compositionTransaction.enlist();
-      }
-    }
-
-    RouterView.prototype.created = function created(owningView) {
-      this.owningView = owningView;
-    };
-
-    RouterView.prototype.bind = function bind(bindingContext, overrideContext) {
-      this.container.viewModel = bindingContext;
-      this.overrideContext = overrideContext;
-    };
-
-    RouterView.prototype.process = function process(viewPortInstruction, waitToSwap) {
-      var _this = this;
-
-      var component = viewPortInstruction.component;
-      var childContainer = component.childContainer;
-      var viewModel = component.viewModel;
-      var viewModelResource = component.viewModelResource;
-      var metadata = viewModelResource.metadata;
-      var config = component.router.currentInstruction.config;
-      var viewPort = config.viewPorts ? config.viewPorts[viewPortInstruction.name] : {};
-
-      var layoutInstruction = {
-        viewModel: viewPort.layoutViewModel || config.layoutViewModel || this.layoutViewModel,
-        view: viewPort.layoutView || config.layoutView || this.layoutView,
-        model: viewPort.layoutModel || config.layoutModel || this.layoutModel,
-        router: viewPortInstruction.component.router,
-        childContainer: childContainer,
-        viewSlot: this.viewSlot
-      };
-
-      var viewStrategy = this.viewLocator.getViewStrategy(component.view || viewModel);
-      if (viewStrategy && component.view) {
-        viewStrategy.makeRelativeTo(_aureliaMetadata.Origin.get(component.router.container.viewModel.constructor).moduleId);
-      }
-
-      return metadata.load(childContainer, viewModelResource.value, null, viewStrategy, true).then(function (viewFactory) {
-        if (!_this.compositionTransactionNotifier) {
-          _this.compositionTransactionOwnershipToken = _this.compositionTransaction.tryCapture();
-        }
-
-        if (layoutInstruction.viewModel || layoutInstruction.view) {
-          viewPortInstruction.layoutInstruction = layoutInstruction;
-        }
-
-        viewPortInstruction.controller = metadata.create(childContainer, _aureliaTemplating.BehaviorInstruction.dynamic(_this.element, viewModel, viewFactory));
-
-        if (waitToSwap) {
-          return;
-        }
-
-        _this.swap(viewPortInstruction);
-      });
-    };
-
-    RouterView.prototype.swap = function swap(viewPortInstruction) {
-      var _this2 = this;
-
-      var layoutInstruction = viewPortInstruction.layoutInstruction;
-
-      var work = function work() {
-        var previousView = _this2.view;
-        var swapStrategy = void 0;
-        var viewSlot = _this2.viewSlot;
-
-        swapStrategy = _this2.swapOrder in swapStrategies ? swapStrategies[_this2.swapOrder] : swapStrategies.after;
-
-        swapStrategy(viewSlot, previousView, function () {
-          return Promise.resolve().then(function () {
-            return viewSlot.add(_this2.view);
-          }).then(function () {
-            _this2._notify();
-          });
-        });
-      };
-
-      var ready = function ready(owningView) {
-        viewPortInstruction.controller.automate(_this2.overrideContext, owningView);
-        if (_this2.compositionTransactionOwnershipToken) {
-          return _this2.compositionTransactionOwnershipToken.waitForCompositionComplete().then(function () {
-            _this2.compositionTransactionOwnershipToken = null;
-            return work();
-          });
-        }
-
-        return work();
-      };
-
-      if (layoutInstruction) {
-        if (!layoutInstruction.viewModel) {
-          layoutInstruction.viewModel = {};
-        }
-
-        return this.compositionEngine.createController(layoutInstruction).then(function (controller) {
-          _aureliaTemplating.ShadowDOM.distributeView(viewPortInstruction.controller.view, controller.slots || controller.view.slots);
-          controller.automate((0, _aureliaBinding.createOverrideContext)(layoutInstruction.viewModel), _this2.owningView);
-          controller.view.children.push(viewPortInstruction.controller.view);
-          return controller.view || controller;
-        }).then(function (newView) {
-          _this2.view = newView;
-          return ready(newView);
-        });
-      }
-
-      this.view = viewPortInstruction.controller.view;
-
-      return ready(this.owningView);
-    };
-
-    RouterView.prototype._notify = function _notify() {
-      if (this.compositionTransactionNotifier) {
-        this.compositionTransactionNotifier.done();
-        this.compositionTransactionNotifier = null;
-      }
-    };
-
-    return RouterView;
-  }(), (_descriptor = _applyDecoratedDescriptor(_class2.prototype, 'swapOrder', [_aureliaTemplating.bindable], {
-    enumerable: true,
-    initializer: null
-  }), _descriptor2 = _applyDecoratedDescriptor(_class2.prototype, 'layoutView', [_aureliaTemplating.bindable], {
-    enumerable: true,
-    initializer: null
-  }), _descriptor3 = _applyDecoratedDescriptor(_class2.prototype, 'layoutViewModel', [_aureliaTemplating.bindable], {
-    enumerable: true,
-    initializer: null
-  }), _descriptor4 = _applyDecoratedDescriptor(_class2.prototype, 'layoutModel', [_aureliaTemplating.bindable], {
-    enumerable: true,
-    initializer: null
-  })), _class2)) || _class) || _class) || _class);
-});
-define('aurelia-templating-router/route-href',['exports', 'aurelia-templating', 'aurelia-dependency-injection', 'aurelia-router', 'aurelia-pal', 'aurelia-logging'], function (exports, _aureliaTemplating, _aureliaDependencyInjection, _aureliaRouter, _aureliaPal, _aureliaLogging) {
-  'use strict';
-
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-  exports.RouteHref = undefined;
-
-  var LogManager = _interopRequireWildcard(_aureliaLogging);
-
-  function _interopRequireWildcard(obj) {
-    if (obj && obj.__esModule) {
-      return obj;
-    } else {
-      var newObj = {};
-
-      if (obj != null) {
-        for (var key in obj) {
-          if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
-        }
-      }
-
-      newObj.default = obj;
-      return newObj;
-    }
-  }
-
-  
-
-  var _dec, _dec2, _dec3, _dec4, _dec5, _class;
-
-  var logger = LogManager.getLogger('route-href');
-
-  var RouteHref = exports.RouteHref = (_dec = (0, _aureliaTemplating.customAttribute)('route-href'), _dec2 = (0, _aureliaTemplating.bindable)({ name: 'route', changeHandler: 'processChange' }), _dec3 = (0, _aureliaTemplating.bindable)({ name: 'params', changeHandler: 'processChange' }), _dec4 = (0, _aureliaTemplating.bindable)({ name: 'attribute', defaultValue: 'href' }), _dec5 = (0, _aureliaDependencyInjection.inject)(_aureliaRouter.Router, _aureliaPal.DOM.Element), _dec(_class = _dec2(_class = _dec3(_class = _dec4(_class = _dec5(_class = function () {
-    function RouteHref(router, element) {
-      
-
-      this.router = router;
-      this.element = element;
-    }
-
-    RouteHref.prototype.bind = function bind() {
-      this.isActive = true;
-      this.processChange();
-    };
-
-    RouteHref.prototype.unbind = function unbind() {
-      this.isActive = false;
-    };
-
-    RouteHref.prototype.attributeChanged = function attributeChanged(value, previous) {
-      if (previous) {
-        this.element.removeAttribute(previous);
-      }
-
-      this.processChange();
-    };
-
-    RouteHref.prototype.processChange = function processChange() {
-      var _this = this;
-
-      return this.router.ensureConfigured().then(function () {
-        if (!_this.isActive) {
-          return null;
-        }
-
-        var href = _this.router.generate(_this.route, _this.params);
-
-        if (_this.element.au.controller) {
-          _this.element.au.controller.viewModel[_this.attribute] = href;
-        } else {
-          _this.element.setAttribute(_this.attribute, href);
-        }
-
-        return null;
-      }).catch(function (reason) {
-        logger.error(reason);
-      });
-    };
-
-    return RouteHref;
-  }()) || _class) || _class) || _class) || _class) || _class);
-});
 define('aurelia-testing/aurelia-testing',['exports', './compile-spy', './view-spy', './component-tester'], function (exports, _compileSpy, _viewSpy, _componentTester) {
   'use strict';
 
@@ -43223,4 +44053,4 @@ define('aurelia-testing/component-tester',['exports', 'aurelia-templating', 'aur
     return ComponentTester;
   }();
 });
-function _aureliaConfigureModuleLoader(){requirejs.config({"baseUrl":"src/","paths":{"aurelia-binding":"../node_modules\\aurelia-binding\\dist\\amd\\aurelia-binding","aurelia-bootstrapper":"../node_modules\\aurelia-bootstrapper\\dist\\amd\\aurelia-bootstrapper","aurelia-dependency-injection":"../node_modules\\aurelia-dependency-injection\\dist\\amd\\aurelia-dependency-injection","aurelia-framework":"../node_modules\\aurelia-framework\\dist\\amd\\aurelia-framework","aurelia-event-aggregator":"../node_modules\\aurelia-event-aggregator\\dist\\amd\\aurelia-event-aggregator","aurelia-history":"../node_modules\\aurelia-history\\dist\\amd\\aurelia-history","aurelia-history-browser":"../node_modules\\aurelia-history-browser\\dist\\amd\\aurelia-history-browser","aurelia-loader":"../node_modules\\aurelia-loader\\dist\\amd\\aurelia-loader","aurelia-logging":"../node_modules\\aurelia-logging\\dist\\amd\\aurelia-logging","aurelia-loader-default":"../node_modules\\aurelia-loader-default\\dist\\amd\\aurelia-loader-default","aurelia-logging-console":"../node_modules\\aurelia-logging-console\\dist\\amd\\aurelia-logging-console","aurelia-metadata":"../node_modules\\aurelia-metadata\\dist\\amd\\aurelia-metadata","aurelia-pal":"../node_modules\\aurelia-pal\\dist\\amd\\aurelia-pal","aurelia-pal-browser":"../node_modules\\aurelia-pal-browser\\dist\\amd\\aurelia-pal-browser","aurelia-path":"../node_modules\\aurelia-path\\dist\\amd\\aurelia-path","aurelia-polyfills":"../node_modules\\aurelia-polyfills\\dist\\amd\\aurelia-polyfills","aurelia-route-recognizer":"../node_modules\\aurelia-route-recognizer\\dist\\amd\\aurelia-route-recognizer","aurelia-router":"../node_modules\\aurelia-router\\dist\\amd\\aurelia-router","aurelia-templating":"../node_modules\\aurelia-templating\\dist\\amd\\aurelia-templating","aurelia-task-queue":"../node_modules\\aurelia-task-queue\\dist\\amd\\aurelia-task-queue","aurelia-templating-binding":"../node_modules\\aurelia-templating-binding\\dist\\amd\\aurelia-templating-binding","text":"../node_modules\\text\\text","app-bundle":"../scripts/app-bundle"},"packages":[{"name":"d3","location":"../node_modules/d3/build","main":"d3.js"},{"name":"aurelia-templating-resources","location":"../node_modules/aurelia-templating-resources/dist/amd","main":"aurelia-templating-resources"},{"name":"aurelia-templating-router","location":"../node_modules/aurelia-templating-router/dist/amd","main":"aurelia-templating-router"},{"name":"aurelia-testing","location":"../node_modules/aurelia-testing/dist/amd","main":"aurelia-testing"}],"stubModules":["text"],"shim":{},"bundles":{"app-bundle":["app","environment","main","my-d3","spam-spam","resources/index"]}})}
+function _aureliaConfigureModuleLoader(){requirejs.config({"baseUrl":"src/","paths":{"aurelia-binding":"../node_modules\\aurelia-binding\\dist\\amd\\aurelia-binding","aurelia-bootstrapper":"../node_modules\\aurelia-bootstrapper\\dist\\amd\\aurelia-bootstrapper","aurelia-dependency-injection":"../node_modules\\aurelia-dependency-injection\\dist\\amd\\aurelia-dependency-injection","aurelia-event-aggregator":"../node_modules\\aurelia-event-aggregator\\dist\\amd\\aurelia-event-aggregator","aurelia-framework":"../node_modules\\aurelia-framework\\dist\\amd\\aurelia-framework","aurelia-history":"../node_modules\\aurelia-history\\dist\\amd\\aurelia-history","aurelia-history-browser":"../node_modules\\aurelia-history-browser\\dist\\amd\\aurelia-history-browser","aurelia-loader":"../node_modules\\aurelia-loader\\dist\\amd\\aurelia-loader","aurelia-loader-default":"../node_modules\\aurelia-loader-default\\dist\\amd\\aurelia-loader-default","aurelia-logging":"../node_modules\\aurelia-logging\\dist\\amd\\aurelia-logging","aurelia-logging-console":"../node_modules\\aurelia-logging-console\\dist\\amd\\aurelia-logging-console","aurelia-metadata":"../node_modules\\aurelia-metadata\\dist\\amd\\aurelia-metadata","aurelia-pal":"../node_modules\\aurelia-pal\\dist\\amd\\aurelia-pal","aurelia-pal-browser":"../node_modules\\aurelia-pal-browser\\dist\\amd\\aurelia-pal-browser","aurelia-path":"../node_modules\\aurelia-path\\dist\\amd\\aurelia-path","aurelia-polyfills":"../node_modules\\aurelia-polyfills\\dist\\amd\\aurelia-polyfills","aurelia-route-recognizer":"../node_modules\\aurelia-route-recognizer\\dist\\amd\\aurelia-route-recognizer","aurelia-router":"../node_modules\\aurelia-router\\dist\\amd\\aurelia-router","aurelia-task-queue":"../node_modules\\aurelia-task-queue\\dist\\amd\\aurelia-task-queue","aurelia-templating":"../node_modules\\aurelia-templating\\dist\\amd\\aurelia-templating","aurelia-templating-binding":"../node_modules\\aurelia-templating-binding\\dist\\amd\\aurelia-templating-binding","aurelia-http-client":"../node_modules\\aurelia-http-client\\dist\\amd\\aurelia-http-client","text":"../node_modules\\text\\text","app-bundle":"../scripts/app-bundle"},"packages":[{"name":"d3","location":"../node_modules/d3/build","main":"d3.js"},{"name":"aurelia-templating-router","location":"../node_modules/aurelia-templating-router/dist/amd","main":"aurelia-templating-router"},{"name":"aurelia-templating-resources","location":"../node_modules/aurelia-templating-resources/dist/amd","main":"aurelia-templating-resources"},{"name":"aurelia-testing","location":"../node_modules/aurelia-testing/dist/amd","main":"aurelia-testing"}],"stubModules":["text"],"shim":{},"bundles":{"app-bundle":["app","environment","main","my-d3","spam-spam","resources/index","assets/example-data","node_modules/abbrev/package","node_modules/accepts/package","node_modules/acorn/package","node_modules/acorn-jsx/package","node_modules/after/package","node_modules/ajv/package","node_modules/align-text/package","node_modules/ajv-keywords/package","node_modules/amdefine/package","node_modules/ansi-escapes/package","node_modules/ansi-regex/package","node_modules/ansi-styles/package","node_modules/ansicolors/package","node_modules/anymatch/package","node_modules/aproba/package","node_modules/archy/package","node_modules/are-we-there-yet/package","node_modules/argparse/package","node_modules/arr-diff/package","node_modules/array-differ/package","node_modules/array-find-index/package","node_modules/array-index/component","node_modules/array-index/package","node_modules/array-uniq/package","node_modules/array-unique/package","node_modules/arraybuffer.slice/package","node_modules/array-union/package","node_modules/arr-flatten/package","node_modules/arrify/package","node_modules/assert-plus/package","node_modules/asn1/package","node_modules/async/bower","node_modules/async/package","node_modules/async-done/package","node_modules/async-each/package","node_modules/async-each-series/package","node_modules/async-foreach/package","node_modules/async-settle/package","node_modules/atob/package","node_modules/aurelia-animator-css/bower","node_modules/aurelia-animator-css/package","node_modules/aurelia-animator-css/tsconfig","node_modules/aurelia-animator-css/typings","node_modules/aurelia-binding/bower","node_modules/aurelia-binding/package","node_modules/aurelia-binding/tsconfig","node_modules/aurelia-binding/typings","node_modules/aurelia-bootstrapper/bower","node_modules/aurelia-bootstrapper/package","node_modules/aurelia-bootstrapper/tsconfig","node_modules/aurelia-bootstrapper/typings","node_modules/aurelia-cli/package","node_modules/aurelia-dependency-injection/bower","node_modules/aurelia-dependency-injection/package","node_modules/aurelia-dependency-injection/tsconfig","node_modules/aurelia-dependency-injection/typings","node_modules/aurelia-event-aggregator/bower","node_modules/aurelia-event-aggregator/package","node_modules/aurelia-event-aggregator/tsconfig","node_modules/aurelia-event-aggregator/typings","node_modules/aurelia-framework/bower","node_modules/aurelia-framework/package","node_modules/aurelia-framework/tsconfig","node_modules/aurelia-framework/typings","node_modules/aurelia-history/bower","node_modules/aurelia-history/package","node_modules/aurelia-history/tsconfig","node_modules/aurelia-history/typings","node_modules/aurelia-history-browser/bower","node_modules/aurelia-history-browser/package","node_modules/aurelia-history-browser/tsconfig","node_modules/aurelia-history-browser/typings","node_modules/aurelia-http-client/bower","node_modules/aurelia-http-client/package","node_modules/aurelia-http-client/tsconfig","node_modules/aurelia-http-client/typings","node_modules/aurelia-loader/bower","node_modules/aurelia-loader/package","node_modules/aurelia-loader/tsconfig","node_modules/aurelia-loader/typings","node_modules/aurelia-loader-default/bower","node_modules/aurelia-loader-default/package","node_modules/aurelia-loader-default/tsconfig","node_modules/aurelia-loader-default/typings","node_modules/aurelia-logging/bower","node_modules/aurelia-logging/package","node_modules/aurelia-logging/tsconfig","node_modules/aurelia-logging/typings","node_modules/aurelia-logging-console/bower","node_modules/aurelia-logging-console/package","node_modules/aurelia-logging-console/tsconfig","node_modules/aurelia-logging-console/typings","node_modules/aurelia-metadata/bower","node_modules/aurelia-metadata/package","node_modules/aurelia-metadata/tsconfig","node_modules/aurelia-metadata/typings","node_modules/aurelia-pal/bower","node_modules/aurelia-pal/package","node_modules/aurelia-pal/tsconfig","node_modules/aurelia-pal/typings","node_modules/aurelia-pal-browser/bower","node_modules/aurelia-pal-browser/package","node_modules/aurelia-pal-browser/tsconfig","node_modules/aurelia-pal-browser/typings","node_modules/aurelia-path/bower","node_modules/aurelia-path/package","node_modules/aurelia-path/tsconfig","node_modules/aurelia-path/typings","node_modules/aurelia-polyfills/bower","node_modules/aurelia-polyfills/package","node_modules/aurelia-polyfills/tsconfig","node_modules/aurelia-polyfills/typings","node_modules/aurelia-route-recognizer/bower","node_modules/aurelia-route-recognizer/package","node_modules/aurelia-route-recognizer/tsconfig","node_modules/aurelia-route-recognizer/typings","node_modules/aurelia-router/bower","node_modules/aurelia-router/package","node_modules/aurelia-router/tsconfig","node_modules/aurelia-router/typings","node_modules/aurelia-task-queue/bower","node_modules/aurelia-task-queue/package","node_modules/aurelia-task-queue/tsconfig","node_modules/aurelia-task-queue/typings","node_modules/aurelia-templating/bower","node_modules/aurelia-templating/package","node_modules/aurelia-templating/tsconfig","node_modules/aurelia-templating/typings","node_modules/aurelia-templating-binding/bower","node_modules/aurelia-templating-binding/package","node_modules/aurelia-templating-binding/tsconfig","node_modules/aurelia-templating-binding/typings","node_modules/aurelia-templating-resources/bower","node_modules/aurelia-templating-resources/package","node_modules/aurelia-templating-resources/tsconfig","node_modules/aurelia-templating-resources/typings","node_modules/aurelia-templating-router/bower","node_modules/aurelia-templating-router/package","node_modules/aurelia-templating-router/tsconfig","node_modules/aurelia-templating-router/typings","node_modules/aurelia-testing/bower","node_modules/aurelia-testing/package","node_modules/aurelia-testing/tsconfig","node_modules/aurelia-testing/typings","node_modules/aws-sign2/package","node_modules/aurelia-tools/package","node_modules/babel-code-frame/package","node_modules/babel-eslint/package","node_modules/babel-core/package","node_modules/babel-generator/package","node_modules/babel-helper-builder-binary-assignment-operator-visitor/package","node_modules/babel-helper-call-delegate/package","node_modules/babel-helper-define-map/package","node_modules/babel-helper-explode-assignable-expression/package","node_modules/babel-helper-explode-class/package","node_modules/babel-helper-function-name/package","node_modules/babel-helper-get-function-arity/package","node_modules/babel-helper-hoist-variables/package","node_modules/babel-helper-optimise-call-expression/package","node_modules/babel-helper-regex/package","node_modules/babel-helper-bindify-decorators/package","node_modules/babel-helper-remap-async-to-generator/package","node_modules/babel-helper-replace-supers/package","node_modules/babel-messages/package","node_modules/babel-plugin-syntax-async-functions/package","node_modules/babel-helpers/package","node_modules/babel-plugin-check-es2015-constants/package","node_modules/babel-plugin-syntax-async-generators/package","node_modules/babel-plugin-syntax-class-properties/package","node_modules/babel-plugin-syntax-decorators/package","node_modules/babel-plugin-syntax-class-constructor-call/package","node_modules/babel-plugin-syntax-exponentiation-operator/package","node_modules/babel-plugin-syntax-dynamic-import/package","node_modules/babel-plugin-syntax-flow/package","node_modules/babel-plugin-syntax-export-extensions/package","node_modules/babel-plugin-syntax-trailing-function-commas/package","node_modules/babel-plugin-transform-async-generator-functions/package","node_modules/babel-plugin-syntax-object-rest-spread/package","node_modules/babel-plugin-transform-async-to-generator/package","node_modules/babel-plugin-transform-class-properties/package","node_modules/babel-plugin-transform-class-constructor-call/package","node_modules/babel-plugin-transform-decorators/package","node_modules/babel-plugin-transform-es2015-arrow-functions/package","node_modules/babel-plugin-transform-decorators-legacy/package","node_modules/babel-plugin-transform-es2015-block-scoped-functions/package","node_modules/babel-plugin-transform-es2015-block-scoping/package","node_modules/babel-plugin-transform-es2015-classes/package","node_modules/babel-plugin-transform-es2015-duplicate-keys/package","node_modules/babel-plugin-transform-es2015-destructuring/package","node_modules/babel-plugin-transform-es2015-computed-properties/package","node_modules/babel-plugin-transform-es2015-for-of/package","node_modules/babel-plugin-transform-es2015-literals/package","node_modules/babel-plugin-transform-es2015-modules-amd/package","node_modules/babel-plugin-transform-es2015-modules-commonjs/package","node_modules/babel-plugin-transform-es2015-modules-systemjs/package","node_modules/babel-plugin-transform-es2015-modules-umd/package","node_modules/babel-plugin-transform-es2015-parameters/package","node_modules/babel-plugin-transform-es2015-object-super/package","node_modules/babel-plugin-transform-es2015-shorthand-properties/package","node_modules/babel-plugin-transform-es2015-sticky-regex/package","node_modules/babel-plugin-transform-es2015-spread/package","node_modules/babel-plugin-transform-es2015-function-name/package","node_modules/babel-plugin-transform-es2015-template-literals/package","node_modules/babel-plugin-transform-es2015-typeof-symbol/package","node_modules/babel-plugin-transform-es2015-unicode-regex/package","node_modules/babel-plugin-transform-exponentiation-operator/package","node_modules/babel-plugin-transform-object-rest-spread/package","node_modules/babel-plugin-transform-export-extensions/package","node_modules/babel-plugin-transform-flow-strip-types/package","node_modules/babel-plugin-transform-regenerator/package","node_modules/babel-plugin-transform-strict-mode/package","node_modules/babel-polyfill/package","node_modules/babel-preset-es2015/package","node_modules/babel-preset-es2015-loose/package","node_modules/babel-preset-stage-1/package","node_modules/babel-preset-stage-2/package","node_modules/babel-preset-stage-3/package","node_modules/babel-register/package","node_modules/babel-runtime/package","node_modules/babel-template/package","node_modules/babel-traverse/package","node_modules/babel-types/package","node_modules/babylon/package","node_modules/bach/package","node_modules/balanced-match/package","node_modules/backo2/component","node_modules/backo2/package","node_modules/base64-arraybuffer/package","node_modules/base64id/package","node_modules/batch/component","node_modules/batch/package","node_modules/beeper/package","node_modules/benchmark/package","node_modules/better-assert/package","node_modules/bl/package","node_modules/binary-extensions/binary-extensions","node_modules/binary-extensions/package","node_modules/blob/package","node_modules/bluebird/package","node_modules/block-stream/package","node_modules/boom/package","node_modules/brace-expansion/package","node_modules/braces/package","node_modules/breeze-dag/package","node_modules/breeze-queue/package","node_modules/breeze-nexttick/package","node_modules/browser-sync/package","node_modules/browser-sync-ui/package","node_modules/browser-sync-client/package","node_modules/buffer-shims/package","node_modules/bs-recipes/manifest","node_modules/bs-recipes/package","node_modules/bufferstreams/package","node_modules/builtin-modules/builtin-modules","node_modules/builtin-modules/package","node_modules/caller-path/package","node_modules/callsite/package","node_modules/callsites/package","node_modules/camelcase/package","node_modules/camelcase-keys/package","node_modules/caseless/package","node_modules/cardinal/package","node_modules/center-align/package","node_modules/chalk/package","node_modules/chokidar/package","node_modules/circular-json/package","node_modules/cli-cursor/package","node_modules/cli-table/package","node_modules/cli-usage/package","node_modules/cli-width/package","node_modules/cliui/package","node_modules/clone/package","node_modules/clone-stats/package","node_modules/co/package","node_modules/code-point-at/package","node_modules/colors/package","node_modules/combined-stream/package","node_modules/commander/package","node_modules/component-bind/component","node_modules/component-bind/package","node_modules/component-emitter/bower","node_modules/component-emitter/component","node_modules/component-emitter/package","node_modules/component-inherit/component","node_modules/component-inherit/package","node_modules/concat-map/package","node_modules/concat-stream/package","node_modules/connect/package","node_modules/connect-history-api-fallback/package","node_modules/convert-source-map/package","node_modules/console-control-strings/package","node_modules/core-util-is/package","node_modules/core-js/bower","node_modules/core-js/package","node_modules/cryptiles/package","node_modules/ctype/package","node_modules/css/package","node_modules/currently-unhandled/package","node_modules/d/package","node_modules/d3/package","node_modules/d3-axis/package","node_modules/d3-array/package","node_modules/d3-brush/package","node_modules/cross-spawn/package","node_modules/d3-chord/package","node_modules/d3-color/package","node_modules/d3-collection/package","node_modules/d3-dispatch/package","node_modules/d3-dsv/package","node_modules/d3-drag/package","node_modules/d3-force/package","node_modules/d3-ease/package","node_modules/d3-geo/package","node_modules/d3-interpolate/package","node_modules/d3-hierarchy/package","node_modules/d3-format/package","node_modules/d3-path/package","node_modules/d3-polygon/package","node_modules/d3-queue/package","node_modules/d3-random/package","node_modules/d3-quadtree/package","node_modules/d3-scale/package","node_modules/d3-request/package","node_modules/d3-selection/package","node_modules/d3-shape/package","node_modules/d3-time-format/package","node_modules/d3-timer/package","node_modules/d3-time/package","node_modules/d3-transition/package","node_modules/d3-zoom/package","node_modules/debug/bower","node_modules/debug/component","node_modules/debug/package","node_modules/dateformat/package","node_modules/d3-voronoi/package","node_modules/debug-fabulous/package","node_modules/decamelize/package","node_modules/default-resolution/package","node_modules/delayed-stream/package","node_modules/del/package","node_modules/delegates/package","node_modules/destroy/package","node_modules/depd/package","node_modules/detect-file/package","node_modules/detect-indent/package","node_modules/doctrine/package","node_modules/detect-newline/package","node_modules/dev-ip/package","node_modules/duplexify/package","node_modules/duplexer2/package","node_modules/deep-is/package","node_modules/eazy-logger/package","node_modules/easy-extender/package","node_modules/ee-first/package","node_modules/emitter-steward/package","node_modules/encodeurl/package","node_modules/end-of-stream/package","node_modules/engine.io/package","node_modules/engine.io-client/package","node_modules/engine.io-parser/package","node_modules/error-ex/package","node_modules/es5-ext/package","node_modules/es6-map/package","node_modules/es6-set/package","node_modules/es6-symbol/package","node_modules/es6-iterator/package","node_modules/es6-weak-map/package","node_modules/escape-html/package","node_modules/escope/bower","node_modules/escope/package","node_modules/escape-string-regexp/package","node_modules/eslint/package","node_modules/espree/package","node_modules/esprima/package","node_modules/esrecurse/package","node_modules/estraverse/package","node_modules/esutils/package","node_modules/etag/package","node_modules/event-emitter/package","node_modules/eventemitter3/package","node_modules/exit-hook/package","node_modules/expand-brackets/package","node_modules/expand-range/package","node_modules/expand-tilde/package","node_modules/express/package","node_modules/extend/component","node_modules/extend/package","node_modules/extend-shallow/package","node_modules/extglob/package","node_modules/fancy-log/package","node_modules/figures/package","node_modules/fast-levenshtein/package","node_modules/file-entry-cache/package","node_modules/filename-regex/package","node_modules/fill-range/package","node_modules/find-up/package","node_modules/finalhandler/package","node_modules/findup-sync/package","node_modules/fined/package","node_modules/flagged-respawn/package","node_modules/first-chunk-stream/package","node_modules/for-own/package","node_modules/for-in/package","node_modules/flat-cache/package","node_modules/forever-agent/package","node_modules/form-data/package","node_modules/formidable/package","node_modules/fresh/package","node_modules/fs-extra/package","node_modules/fs-exists-sync/package","node_modules/fs.realpath/package","node_modules/gaia-tsort/package","node_modules/fstream/package","node_modules/gauge/package","node_modules/gaze/package","node_modules/generate-function/package","node_modules/generate-object-property/package","node_modules/get-caller-file/package","node_modules/get-stdin/package","node_modules/glob/package","node_modules/glob-base/package","node_modules/glob-parent/package","node_modules/glob-stream/package","node_modules/glob-watcher/package","node_modules/global-modules/package","node_modules/global-prefix/package","node_modules/globals/globals","node_modules/globals/package","node_modules/globby/package","node_modules/globule/package","node_modules/glogg/package","node_modules/graceful-fs/package","node_modules/graceful-readlink/package","node_modules/growly/package","node_modules/gulp/package","node_modules/gulp-babel/package","node_modules/gulp-changed-in-place/package","node_modules/gulp-eslint/package","node_modules/gulp-notify/package","node_modules/gulp-rename/package","node_modules/gulp-plumber/package","node_modules/gulp-sourcemaps/package","node_modules/gulp-sass/package","node_modules/gulp-util/package","node_modules/gulplog/package","node_modules/har-validator/package","node_modules/has-ansi/package","node_modules/has-binary/package","node_modules/has-color/package","node_modules/has-cors/component","node_modules/has-cors/package","node_modules/has-gulplog/package","node_modules/has-unicode/package","node_modules/hawk/bower","node_modules/hawk/component","node_modules/hawk/package","node_modules/hoek/package","node_modules/home-or-tmp/package","node_modules/homedir-polyfill/package","node_modules/hosted-git-info/package","node_modules/http-errors/package","node_modules/http-proxy/package","node_modules/http-signature/package","node_modules/ignore/package","node_modules/iconv-lite/package","node_modules/immutable/package","node_modules/imurmurhash/package","node_modules/in-publish/package","node_modules/indent-string/package","node_modules/indexof/component","node_modules/indexof/package","node_modules/inflight/package","node_modules/inherits/package","node_modules/ini/package","node_modules/inquirer/package","node_modules/invariant/package","node_modules/invert-kv/package","node_modules/is/component","node_modules/is/package","node_modules/is-absolute/package","node_modules/is-arrayish/package","node_modules/is-binary-path/package","node_modules/interpret/package","node_modules/is-builtin-module/package","node_modules/is-buffer/package","node_modules/is-dotfile/package","node_modules/is-equal-shallow/package","node_modules/is-extendable/package","node_modules/is-extglob/package","node_modules/is-finite/package","node_modules/is-fullwidth-code-point/package","node_modules/is-glob/package","node_modules/is-my-json-valid/package","node_modules/is-number/package","node_modules/is-path-cwd/package","node_modules/is-path-in-cwd/package","node_modules/is-path-inside/package","node_modules/is-posix-bracket/package","node_modules/is-primitive/package","node_modules/is-property/package","node_modules/is-relative/package","node_modules/is-resolvable/package","node_modules/is-stream/package","node_modules/is-unc-path/package","node_modules/is-valid-glob/package","node_modules/is-utf8/package","node_modules/is-windows/package","node_modules/isarray/component","node_modules/isarray/package","node_modules/isexe/package","node_modules/isobject/package","node_modules/isstream/package","node_modules/js-tokens/package","node_modules/js-yaml/package","node_modules/jsesc/package","node_modules/json-stable-stringify/package","node_modules/json-stringify-safe/package","node_modules/json3/package","node_modules/json5/package","node_modules/jsonfile/package","node_modules/jsonify/package","node_modules/jsonpointer/package","node_modules/kind-of/package","node_modules/klaw/package","node_modules/last-run/package","node_modules/lazy-cache/package","node_modules/lazy-debug-legacy/package","node_modules/lazystream/package","node_modules/lcid/lcid","node_modules/lcid/package","node_modules/levn/package","node_modules/liftoff/package","node_modules/limiter/bower","node_modules/limiter/package","node_modules/localtunnel/package","node_modules/load-json-file/package","node_modules/lodash/package","node_modules/lodash.assign/package","node_modules/lodash.assignwith/package","node_modules/lodash.clonedeep/package","node_modules/lodash.debounce/package","node_modules/lodash.defaults/package","node_modules/lodash.escape/package","node_modules/lodash.filter/package","node_modules/lodash.flatten/package","node_modules/lodash.foreach/package","node_modules/lodash.initial/package","node_modules/lodash.isarguments/package","node_modules/lodash.isarray/package","node_modules/lodash.isempty/package","node_modules/lodash.isequal/package","node_modules/lodash.isfunction/package","node_modules/lodash.isplainobject/package","node_modules/lodash.isstring/package","node_modules/lodash.keys/package","node_modules/lodash.last/package","node_modules/lodash.map/package","node_modules/lodash.mapvalues/package","node_modules/lodash.pick/package","node_modules/lodash.pickby/package","node_modules/lodash.reduce/package","node_modules/lodash.restparam/package","node_modules/lodash.sortby/package","node_modules/lodash.template/package","node_modules/lodash.templatesettings/package","node_modules/lodash._arraycopy/package","node_modules/lodash._arrayeach/package","node_modules/lodash._baseassign/package","node_modules/lodash._baseclone/package","node_modules/lodash._basecopy/package","node_modules/lodash._basefor/package","node_modules/lodash._basetostring/package","node_modules/lodash._basevalues/package","node_modules/lodash._bindcallback/package","node_modules/lodash._getnative/package","node_modules/lodash._isiterateecall/package","node_modules/lodash._reescape/package","node_modules/lodash._reevaluate/package","node_modules/lodash._reinterpolate/package","node_modules/lodash._root/package","node_modules/longest/package","node_modules/loose-envify/package","node_modules/loud-rejection/package","node_modules/lru-cache/package","node_modules/map-cache/package","node_modules/map-obj/package","node_modules/marked/bower","node_modules/marked/component","node_modules/marked/package","node_modules/marked-terminal/package","node_modules/matchdep/package","node_modules/meow/package","node_modules/merge-stream/package","node_modules/micromatch/package","node_modules/mime/package","node_modules/mime-db/db","node_modules/mime-db/package","node_modules/mime-types/package","node_modules/minimatch/package","node_modules/minimist/package","node_modules/mkdirp/package","node_modules/modify-babel-preset/package","node_modules/ms/package","node_modules/multipipe/package","node_modules/mute-stdout/package","node_modules/mute-stream/package","node_modules/nan/package","node_modules/negotiator/package","node_modules/next-tick/package","node_modules/node-emoji/package","node_modules/node-gyp/package","node_modules/node-notifier/package","node_modules/node-sass/package","node_modules/node-uuid/bower","node_modules/node-uuid/component","node_modules/node-uuid/package","node_modules/node.extend/package","node_modules/nopt/package","node_modules/normalize-package-data/package","node_modules/normalize-path/package","node_modules/now-and-later/package","node_modules/npm/package","node_modules/npmlog/package","node_modules/number-is-nan/package","node_modules/object-assign/package","node_modules/oauth-sign/package","node_modules/object-component/component","node_modules/object-component/package","node_modules/object-path/bower","node_modules/object-path/component","node_modules/object-path/package","node_modules/object.omit/package","node_modules/on-finished/package","node_modules/once/package","node_modules/onetime/package","node_modules/opn/package","node_modules/openurl/package","node_modules/optionator/package","node_modules/ordered-read-streams/package","node_modules/os-locale/package","node_modules/options/package","node_modules/os-tmpdir/package","node_modules/osenv/package","node_modules/parse-filepath/package","node_modules/os-homedir/package","node_modules/parse-glob/package","node_modules/parse-passwd/package","node_modules/parse-json/package","node_modules/parsejson/package","node_modules/parseqs/package","node_modules/parseurl/package","node_modules/path-array/package","node_modules/parseuri/package","node_modules/path-dirname/package","node_modules/path-exists/package","node_modules/path-is-inside/package","node_modules/path-is-absolute/package","node_modules/path-type/package","node_modules/path-root-regex/package","node_modules/pify/package","node_modules/pinkie/package","node_modules/path-root/package","node_modules/pluralize/package","node_modules/portscanner/package","node_modules/pinkie-promise/package","node_modules/prelude-ls/package","node_modules/preserve/package","node_modules/pretty-hrtime/package","node_modules/process-nextick-args/package","node_modules/private/package","node_modules/progress/package","node_modules/pseudomap/package","node_modules/randomatic/package","node_modules/qs/package","node_modules/range-parser/package","node_modules/read-pkg/package","node_modules/readable-stream/package","node_modules/read-pkg-up/package","node_modules/readdirp/package","node_modules/readline2/package","node_modules/rechoir/package","node_modules/redent/package","node_modules/redeyed/package","node_modules/regenerate/package","node_modules/regenerator-runtime/package","node_modules/regex-cache/package","node_modules/regexpu-core/package","node_modules/regjsgen/package","node_modules/regjsparser/package","node_modules/repeat-element/package","node_modules/repeat-string/package","node_modules/repeating/package","node_modules/replace-ext/package","node_modules/request/package","node_modules/require-directory/package","node_modules/require-main-filename/package","node_modules/require-relative/package","node_modules/require-uncached/package","node_modules/requirejs/package","node_modules/requirejs-plugins/bower","node_modules/requirejs-plugins/package","node_modules/requires-port/package","node_modules/resolve/package","node_modules/resolve-dir/package","node_modules/resolve-from/package","node_modules/resolve-url/bower","node_modules/resolve-url/component","node_modules/resolve-url/package","node_modules/resp-modifier/package","node_modules/restore-cursor/package","node_modules/right-align/package","node_modules/rimraf/package","node_modules/run-async/package","node_modules/rw/package","node_modules/rx/bower","node_modules/rx/component","node_modules/rx/package","node_modules/rx-lite/package","node_modules/sass-graph/package","node_modules/semver/package","node_modules/semver-greatest-satisfied-range/package","node_modules/semver-regex/package","node_modules/send/package","node_modules/serve-index/package","node_modules/serve-static/package","node_modules/server-destroy/package","node_modules/set-blocking/package","node_modules/set-immediate-shim/package","node_modules/shelljs/package","node_modules/shellwords/package","node_modules/setprototypeof/package","node_modules/signal-exit/package","node_modules/slash/package","node_modules/slice-ansi/package","node_modules/socket.io/package","node_modules/sntp/package","node_modules/socket.io-adapter/package","node_modules/socket.io-client/package","node_modules/socket.io-parser/package","node_modules/source-map/package","node_modules/source-map-resolve/bower","node_modules/source-map-resolve/component","node_modules/source-map-resolve/package","node_modules/source-map-support/package","node_modules/source-map-url/bower","node_modules/source-map-url/component","node_modules/source-map-url/package","node_modules/sparkles/package","node_modules/spdx-correct/package","node_modules/spdx-expression-parse/package","node_modules/spdx-license-ids/package","node_modules/spdx-license-ids/spdx-license-ids","node_modules/sprintf-js/bower","node_modules/sprintf-js/package","node_modules/stack-trace/package","node_modules/statuses/codes","node_modules/statuses/package","node_modules/stream-shift/package","node_modules/stream-throttle/package","node_modules/stream-exhaust/package","node_modules/string-width/package","node_modules/string.prototype.codepointat/package","node_modules/stringstream/package","node_modules/string_decoder/package","node_modules/strip-bom/package","node_modules/strip-ansi/package","node_modules/strip-bom-stream/package","node_modules/strip-indent/package","node_modules/strip-json-comments/package","node_modules/supports-color/package","node_modules/table/package","node_modules/tar/package","node_modules/text/bower","node_modules/text/package","node_modules/text-table/package","node_modules/tfunk/package","node_modules/through/package","node_modules/through2/package","node_modules/through2-filter/package","node_modules/tildify/package","node_modules/time-stamp/package","node_modules/to-absolute-glob/package","node_modules/to-array/package","node_modules/to-fast-properties/package","node_modules/tough-cookie/package","node_modules/trim-newlines/package","node_modules/tryit/package","node_modules/tunnel-agent/package","node_modules/type-check/package","node_modules/typedarray/package","node_modules/ua-parser-js/bower","node_modules/ua-parser-js/component","node_modules/ua-parser-js/package","node_modules/ua-parser-js/ua-parser-js.jquery","node_modules/uglify-js/package","node_modules/ultron/package","node_modules/unc-path-regex/package","node_modules/uglify-to-browserify/package","node_modules/underscore/package","node_modules/undertaker/package","node_modules/undertaker-registry/package","node_modules/unique-stream/package","node_modules/unpipe/package","node_modules/urix/package","node_modules/user-home/package","node_modules/util-deprecate/package","node_modules/utils-merge/package","node_modules/v8flags/package","node_modules/vali-date/package","node_modules/vinyl/package","node_modules/vinyl-fs/package","node_modules/validate-npm-package-license/package","node_modules/weinre/package","node_modules/vinyl-sourcemaps-apply/package","node_modules/which-module/package","node_modules/which/package","node_modules/wide-align/package","node_modules/window-size/package","node_modules/wordwrap/package","node_modules/wrap-ansi/package","node_modules/wrappy/package","node_modules/wreck/package","node_modules/write/package","node_modules/ws/package","node_modules/wtf-8/package","node_modules/xmlhttprequest/package","node_modules/xmlhttprequest-ssl/package","node_modules/xtend/package","node_modules/y18n/package","node_modules/yallist/package","node_modules/yargs/package","node_modules/yargs-parser/package","node_modules/yeast/package","node_modules/aurelia-animator-css/doc/api","node_modules/aurelia-binding/doc/api","node_modules/aurelia-bootstrapper/doc/api","node_modules/aurelia-dependency-injection/doc/api","node_modules/aurelia-event-aggregator/doc/api","node_modules/aurelia-framework/doc/api","node_modules/aurelia-history/doc/api","node_modules/aurelia-history-browser/doc/api","node_modules/aurelia-http-client/doc/api","node_modules/aurelia-loader/doc/api","node_modules/aurelia-loader-default/doc/api","node_modules/aurelia-logging/doc/api","node_modules/aurelia-logging-console/doc/api","node_modules/aurelia-metadata/doc/api","node_modules/aurelia-pal/doc/api","node_modules/aurelia-pal-browser/doc/api","node_modules/aurelia-path/doc/api","node_modules/aurelia-polyfills/doc/api","node_modules/aurelia-route-recognizer/doc/api","node_modules/aurelia-router/doc/api","node_modules/aurelia-task-queue/doc/api","node_modules/aurelia-templating/doc/api","node_modules/aurelia-templating-binding/doc/api","node_modules/aurelia-templating-resources/doc/api","node_modules/aurelia-templating-router/doc/api","node_modules/aurelia-testing/doc/api","node_modules/aurelia-tools/context-debugger/manifest","node_modules/cli-width/coverage/coverage","node_modules/d3-format/locale/ca-ES","node_modules/d3-format/locale/cs-CZ","node_modules/d3-format/locale/de-CH","node_modules/d3-format/locale/de-DE","node_modules/d3-format/locale/en-CA","node_modules/d3-format/locale/en-GB","node_modules/d3-format/locale/en-US","node_modules/d3-format/locale/es-ES","node_modules/d3-format/locale/es-MX","node_modules/d3-format/locale/fi-FI","node_modules/d3-format/locale/fr-CA","node_modules/d3-format/locale/fr-FR","node_modules/d3-format/locale/he-IL","node_modules/d3-format/locale/hu-HU","node_modules/d3-format/locale/it-IT","node_modules/d3-format/locale/ja-JP","node_modules/d3-format/locale/ko-KR","node_modules/d3-format/locale/mk-MK","node_modules/d3-format/locale/nl-NL","node_modules/d3-format/locale/pl-PL","node_modules/d3-format/locale/pt-BR","node_modules/d3-format/locale/ru-RU","node_modules/d3-format/locale/sv-SE","node_modules/d3-format/locale/uk-UA","node_modules/d3-format/locale/zh-CN","node_modules/d3-time-format/locale/ca-ES","node_modules/d3-time-format/locale/cs-CZ","node_modules/d3-time-format/locale/de-CH","node_modules/d3-time-format/locale/de-DE","node_modules/d3-time-format/locale/en-CA","node_modules/d3-time-format/locale/en-GB","node_modules/d3-time-format/locale/en-US","node_modules/d3-time-format/locale/es-ES","node_modules/d3-time-format/locale/es-MX","node_modules/d3-time-format/locale/fi-FI","node_modules/d3-time-format/locale/fr-CA","node_modules/d3-time-format/locale/fr-FR","node_modules/d3-time-format/locale/he-IL","node_modules/d3-time-format/locale/hu-HU","node_modules/d3-time-format/locale/it-IT","node_modules/d3-time-format/locale/ja-JP","node_modules/d3-time-format/locale/ko-KR","node_modules/d3-time-format/locale/mk-MK","node_modules/d3-time-format/locale/nl-NL","node_modules/d3-time-format/locale/pl-PL","node_modules/d3-time-format/locale/pt-BR","node_modules/d3-time-format/locale/ru-RU","node_modules/d3-time-format/locale/sv-SE","node_modules/d3-time-format/locale/uk-UA","node_modules/d3-time-format/locale/zh-CN","node_modules/eslint/conf/blank-script","node_modules/eslint/conf/eslint","node_modules/eslint/conf/json-schema-schema","node_modules/eslint/conf/replacements","node_modules/in-publish/test/package","node_modules/json3/coverage/coverage","node_modules/nan/tools/package","node_modules/node-emoji/lib/emoji","node_modules/normalize-package-data/lib/typos","node_modules/normalize-package-data/lib/warning_messages","node_modules/readdirp/examples/package","node_modules/regexpu-core/data/iu-mappings","node_modules/resolve/lib/core","node_modules/rx/ts/tsconfig","node_modules/ua-parser-js/test/browser&mediaplayer-test","node_modules/ua-parser-js/test/browser-test","node_modules/ua-parser-js/test/cpu-test","node_modules/ua-parser-js/test/device-test","node_modules/ua-parser-js/test/engine-test","node_modules/ua-parser-js/test/os-test","node_modules/uglify-js/tools/domprops","node_modules/yargs/locales/de","node_modules/yargs/locales/en","node_modules/yargs/locales/es","node_modules/yargs/locales/fr","node_modules/yargs/locales/id","node_modules/yargs/locales/it","node_modules/yargs/locales/ja","node_modules/yargs/locales/ko","node_modules/yargs/locales/nb","node_modules/yargs/locales/pirate","node_modules/yargs/locales/pl","node_modules/yargs/locales/pt","node_modules/yargs/locales/pt_BR","node_modules/yargs/locales/tr","node_modules/yargs/locales/zh_CN","node_modules/acorn-jsx/node_modules/acorn/package","node_modules/ajv/lib/refs/json-schema-draft-04","node_modules/ajv/lib/refs/json-schema-v5","node_modules/babel-generator/node_modules/jsesc/package","node_modules/bl/node_modules/readable-stream/package","node_modules/browser-sync/lib/cli/opts.init","node_modules/browser-sync/lib/cli/opts.recipe","node_modules/browser-sync/lib/cli/opts.reload","node_modules/browser-sync/lib/cli/opts.start","node_modules/bs-recipes/recipes/grunt.html.injection/package","node_modules/bs-recipes/recipes/grunt.sass/package","node_modules/bs-recipes/recipes/grunt.sass.autoprefixer/package","node_modules/bs-recipes/recipes/gulp.browserify/package","node_modules/bs-recipes/recipes/gulp.jade/package","node_modules/bs-recipes/recipes/gulp.ruby.sass/package","node_modules/bs-recipes/recipes/gulp.sass/package","node_modules/bs-recipes/recipes/gulp.swig/package","node_modules/bs-recipes/recipes/gulp.task.sequence/package","node_modules/bs-recipes/recipes/html.injection/package","node_modules/bs-recipes/recipes/middleware.css.injection/package","node_modules/bs-recipes/recipes/proxy.custom-css/package","node_modules/bs-recipes/recipes/server/package","node_modules/bs-recipes/recipes/server.gzipped.assets/package","node_modules/bs-recipes/recipes/server.includes/package","node_modules/bs-recipes/recipes/server.middleware/package","node_modules/bs-recipes/recipes/webpack.babel/package","node_modules/bs-recipes/recipes/webpack.monkey-hot-loader/package","node_modules/bs-recipes/recipes/webpack.preact-hot-loader/package","node_modules/bs-recipes/recipes/webpack.react-hot-loader/package","node_modules/bs-recipes/recipes/webpack.react-transform-hmr/package","node_modules/bs-recipes/recipes/webpack.typescript/package","node_modules/bs-recipes/recipes/webpack.typescript/tsconfig","node_modules/bs-recipes/recipes/webpack.typescript.react/package","node_modules/bs-recipes/recipes/webpack.typescript.react/tsconfig","node_modules/bs-recipes/recipes/webpack.typescript.react/typings","node_modules/camelcase-keys/node_modules/camelcase/package","node_modules/cardinal/test/fixtures/json","node_modules/concat-stream/node_modules/readable-stream/package","node_modules/connect/node_modules/debug/bower","node_modules/connect/node_modules/debug/component","node_modules/connect/node_modules/debug/package","node_modules/connect/node_modules/ms/package","node_modules/css/node_modules/source-map/package","node_modules/duplexify/node_modules/end-of-stream/package","node_modules/duplexify/node_modules/once/package","node_modules/duplexer2/node_modules/isarray/component","node_modules/duplexer2/node_modules/isarray/package","node_modules/duplexer2/node_modules/readable-stream/package","node_modules/easy-extender/node_modules/lodash/package","node_modules/end-of-stream/node_modules/once/package","node_modules/engine.io/node_modules/debug/bower","node_modules/engine.io/node_modules/debug/component","node_modules/engine.io/node_modules/debug/package","node_modules/engine.io/node_modules/ms/package","node_modules/engine.io-client/node_modules/debug/bower","node_modules/engine.io-client/node_modules/debug/component","node_modules/engine.io-client/node_modules/debug/package","node_modules/engine.io-client/node_modules/ms/package","node_modules/engine.io-parser/node_modules/has-binary/package","node_modules/engine.io-parser/node_modules/isarray/component","node_modules/engine.io-parser/node_modules/isarray/package","node_modules/eslint/node_modules/user-home/package","node_modules/esrecurse/node_modules/estraverse/package","node_modules/express/node_modules/connect/package","node_modules/express/node_modules/qs/package","node_modules/express/node_modules/mkdirp/package","node_modules/finalhandler/node_modules/debug/bower","node_modules/finalhandler/node_modules/debug/component","node_modules/finalhandler/node_modules/debug/package","node_modules/finalhandler/node_modules/ms/package","node_modules/glob-stream/node_modules/glob/package","node_modules/glob-stream/node_modules/glob-parent/package","node_modules/glob-stream/node_modules/is-extglob/package","node_modules/glob-stream/node_modules/is-glob/package","node_modules/glob-stream/node_modules/isarray/component","node_modules/glob-stream/node_modules/isarray/package","node_modules/glob-stream/node_modules/readable-stream/package","node_modules/glob-stream/node_modules/through2/package","node_modules/globule/node_modules/lodash/package","node_modules/gulp/node_modules/camelcase/package","node_modules/gulp/node_modules/gulp-cli/package","node_modules/gulp/node_modules/yargs/package","node_modules/gulp-notify/node_modules/isarray/component","node_modules/gulp-notify/node_modules/isarray/package","node_modules/gulp-notify/node_modules/readable-stream/package","node_modules/gulp-notify/node_modules/through2/package","node_modules/gulp-sourcemaps/node_modules/strip-bom/package","node_modules/gulp-sass/node_modules/lodash.clonedeep/package","node_modules/gulp-util/node_modules/minimist/package","node_modules/gulp-util/node_modules/object-assign/package","node_modules/gulp-util/node_modules/vinyl/package","node_modules/har-validator/lib/schemas/cache","node_modules/har-validator/lib/schemas/cacheEntry","node_modules/har-validator/lib/schemas/content","node_modules/har-validator/lib/schemas/cookie","node_modules/har-validator/lib/schemas/creator","node_modules/har-validator/lib/schemas/entry","node_modules/har-validator/lib/schemas/har","node_modules/har-validator/lib/schemas/log","node_modules/har-validator/lib/schemas/page","node_modules/har-validator/lib/schemas/pageTimings","node_modules/har-validator/lib/schemas/postData","node_modules/har-validator/lib/schemas/record","node_modules/har-validator/lib/schemas/request","node_modules/har-validator/lib/schemas/response","node_modules/har-validator/lib/schemas/timings","node_modules/has-binary/node_modules/isarray/component","node_modules/has-binary/node_modules/isarray/package","node_modules/iconv-lite/encodings/tables/big5-added","node_modules/iconv-lite/encodings/tables/cp936","node_modules/iconv-lite/encodings/tables/cp949","node_modules/iconv-lite/encodings/tables/cp950","node_modules/iconv-lite/encodings/tables/eucjp","node_modules/iconv-lite/encodings/tables/gb18030-ranges","node_modules/iconv-lite/encodings/tables/gbk-added","node_modules/iconv-lite/encodings/tables/shiftjis","node_modules/is-my-json-valid/test/json-schema-draft4/additionalItems","node_modules/is-my-json-valid/test/json-schema-draft4/additionalProperties","node_modules/is-my-json-valid/test/json-schema-draft4/allOf","node_modules/is-my-json-valid/test/json-schema-draft4/anyOf","node_modules/is-my-json-valid/test/json-schema-draft4/bignum","node_modules/is-my-json-valid/test/json-schema-draft4/default","node_modules/is-my-json-valid/test/json-schema-draft4/definitions","node_modules/is-my-json-valid/test/json-schema-draft4/dependencies","node_modules/is-my-json-valid/test/json-schema-draft4/enum","node_modules/is-my-json-valid/test/json-schema-draft4/format","node_modules/is-my-json-valid/test/json-schema-draft4/items","node_modules/is-my-json-valid/test/json-schema-draft4/maximum","node_modules/is-my-json-valid/test/json-schema-draft4/maxItems","node_modules/is-my-json-valid/test/json-schema-draft4/maxLength","node_modules/is-my-json-valid/test/json-schema-draft4/maxProperties","node_modules/is-my-json-valid/test/json-schema-draft4/minimum","node_modules/is-my-json-valid/test/json-schema-draft4/minItems","node_modules/is-my-json-valid/test/json-schema-draft4/minLength","node_modules/is-my-json-valid/test/json-schema-draft4/minProperties","node_modules/is-my-json-valid/test/json-schema-draft4/multipleOf","node_modules/is-my-json-valid/test/json-schema-draft4/not","node_modules/is-my-json-valid/test/json-schema-draft4/nullAndFormat","node_modules/is-my-json-valid/test/json-schema-draft4/nullAndObject","node_modules/is-my-json-valid/test/json-schema-draft4/oneOf","node_modules/is-my-json-valid/test/json-schema-draft4/pattern","node_modules/is-my-json-valid/test/json-schema-draft4/patternProperties","node_modules/is-my-json-valid/test/json-schema-draft4/properties","node_modules/is-my-json-valid/test/json-schema-draft4/ref","node_modules/is-my-json-valid/test/json-schema-draft4/refRemote","node_modules/is-my-json-valid/test/json-schema-draft4/required","node_modules/is-my-json-valid/test/json-schema-draft4/type","node_modules/is-my-json-valid/test/json-schema-draft4/uniqueItems","node_modules/localtunnel/node_modules/debug/bower","node_modules/localtunnel/node_modules/debug/component","node_modules/localtunnel/node_modules/debug/package","node_modules/localtunnel/node_modules/ms/package","node_modules/localtunnel/node_modules/yargs/package","node_modules/matchdep/node_modules/glob/package","node_modules/matchdep/node_modules/findup-sync/package","node_modules/meow/node_modules/minimist/package","node_modules/node-gyp/node_modules/npmlog/package","node_modules/node-notifier/node_modules/minimist/package","node_modules/node-sass/node_modules/lodash.clonedeep/package","node_modules/normalize-package-data/test/fixtures/async","node_modules/normalize-package-data/test/fixtures/badscripts","node_modules/normalize-package-data/test/fixtures/bcrypt","node_modules/normalize-package-data/test/fixtures/coffee-script","node_modules/normalize-package-data/test/fixtures/http-server","node_modules/normalize-package-data/test/fixtures/movefile","node_modules/normalize-package-data/test/fixtures/no-description","node_modules/normalize-package-data/test/fixtures/node-module_exist","node_modules/normalize-package-data/test/fixtures/npm","node_modules/normalize-package-data/test/fixtures/read-package-json","node_modules/normalize-package-data/test/fixtures/request","node_modules/normalize-package-data/test/fixtures/underscore","node_modules/npm/node_modules/abbrev/package","node_modules/npm/node_modules/ansi-regex/package","node_modules/npm/node_modules/ansicolors/package","node_modules/npm/node_modules/ansistyles/package","node_modules/npm/node_modules/aproba/package","node_modules/npm/node_modules/asap/package","node_modules/npm/node_modules/archy/package","node_modules/npm/node_modules/chownr/package","node_modules/npm/node_modules/cmd-shim/package","node_modules/npm/node_modules/columnify/package","node_modules/npm/node_modules/config-chain/package","node_modules/npm/node_modules/debuglog/package","node_modules/npm/node_modules/editor/package","node_modules/npm/node_modules/dezalgo/package","node_modules/npm/node_modules/fs-vacuum/package","node_modules/npm/node_modules/fs-write-stream-atomic/package","node_modules/npm/node_modules/fstream/package","node_modules/npm/node_modules/glob/package","node_modules/npm/node_modules/fstream-npm/package","node_modules/npm/node_modules/graceful-fs/package","node_modules/npm/node_modules/has-unicode/package","node_modules/npm/node_modules/hosted-git-info/package","node_modules/npm/node_modules/iferr/package","node_modules/npm/node_modules/imurmurhash/package","node_modules/npm/node_modules/inflight/package","node_modules/npm/node_modules/inherits/package","node_modules/npm/node_modules/ini/package","node_modules/npm/node_modules/init-package-json/package","node_modules/npm/node_modules/lockfile/package","node_modules/npm/node_modules/lodash.clonedeep/package","node_modules/npm/node_modules/lodash.restparam/package","node_modules/npm/node_modules/lodash.union/package","node_modules/npm/node_modules/lodash.uniq/package","node_modules/npm/node_modules/lodash.without/package","node_modules/npm/node_modules/lodash._baseindexof/package","node_modules/npm/node_modules/lodash._baseuniq/package","node_modules/npm/node_modules/lodash._bindcallback/package","node_modules/npm/node_modules/lodash._cacheindexof/package","node_modules/npm/node_modules/lodash._createcache/package","node_modules/npm/node_modules/lodash._getnative/package","node_modules/npm/node_modules/mkdirp/package","node_modules/npm/node_modules/node-gyp/package","node_modules/npm/node_modules/nopt/package","node_modules/npm/node_modules/normalize-git-url/package","node_modules/npm/node_modules/normalize-package-data/package","node_modules/npm/node_modules/npm-cache-filename/package","node_modules/npm/node_modules/npm-install-checks/package","node_modules/npm/node_modules/npm-package-arg/package","node_modules/npm/node_modules/npm-registry-client/package","node_modules/npm/node_modules/npm-user-validate/package","node_modules/npm/node_modules/npmlog/package","node_modules/npm/node_modules/once/package","node_modules/npm/node_modules/opener/package","node_modules/npm/node_modules/osenv/package","node_modules/npm/node_modules/path-is-inside/package","node_modules/npm/node_modules/read/package","node_modules/npm/node_modules/read-cmd-shim/package","node_modules/npm/node_modules/read-installed/package","node_modules/npm/node_modules/read-package-json/package","node_modules/npm/node_modules/read-package-tree/package","node_modules/npm/node_modules/readable-stream/package","node_modules/npm/node_modules/readdir-scoped-modules/package","node_modules/npm/node_modules/realize-package-specifier/package","node_modules/npm/node_modules/request/package","node_modules/npm/node_modules/retry/package","node_modules/npm/node_modules/rimraf/package","node_modules/npm/node_modules/semver/package","node_modules/npm/node_modules/sha/package","node_modules/npm/node_modules/slide/package","node_modules/npm/node_modules/sorted-object/package","node_modules/npm/node_modules/strip-ansi/package","node_modules/npm/node_modules/tar/package","node_modules/npm/node_modules/text-table/package","node_modules/npm/node_modules/uid-number/package","node_modules/npm/node_modules/umask/package","node_modules/npm/node_modules/unique-filename/package","node_modules/npm/node_modules/validate-npm-package-license/package","node_modules/npm/node_modules/unpipe/package","node_modules/npm/node_modules/validate-npm-package-name/package","node_modules/npm/node_modules/wrappy/package","node_modules/npm/node_modules/which/package","node_modules/npm/node_modules/write-file-atomic/package","node_modules/npmlog/node_modules/gauge/package","node_modules/npmlog/node_modules/supports-color/package","node_modules/portscanner/node_modules/async/package","node_modules/redeyed/node_modules/esprima/package","node_modules/request/node_modules/qs/bower","node_modules/request/node_modules/qs/component","node_modules/request/node_modules/qs/package","node_modules/requirejs-plugins/examples/data/bar","node_modules/requirejs-plugins/examples/data/foo","node_modules/sass-graph/node_modules/camelcase/package","node_modules/sass-graph/node_modules/window-size/package","node_modules/sass-graph/node_modules/yargs/package","node_modules/sass-graph/node_modules/yargs-parser/package","node_modules/semver-greatest-satisfied-range/node_modules/semver/package","node_modules/send/node_modules/debug/bower","node_modules/send/node_modules/debug/component","node_modules/send/node_modules/debug/package","node_modules/send/node_modules/mime/package","node_modules/send/node_modules/mime/types","node_modules/send/node_modules/ms/package","node_modules/serve-index/node_modules/debug/bower","node_modules/serve-index/node_modules/debug/component","node_modules/serve-index/node_modules/debug/package","node_modules/serve-index/node_modules/ms/package","node_modules/socket.io/node_modules/ms/package","node_modules/socket.io/node_modules/debug/bower","node_modules/socket.io/node_modules/debug/component","node_modules/socket.io/node_modules/debug/package","node_modules/socket.io-adapter/node_modules/debug/bower","node_modules/socket.io-adapter/node_modules/debug/component","node_modules/socket.io-adapter/node_modules/debug/package","node_modules/socket.io-adapter/node_modules/socket.io-parser/package","node_modules/socket.io-adapter/node_modules/ms/package","node_modules/socket.io-adapter/node_modules/isarray/component","node_modules/socket.io-adapter/node_modules/isarray/package","node_modules/socket.io-client/node_modules/debug/bower","node_modules/socket.io-client/node_modules/debug/component","node_modules/socket.io-client/node_modules/debug/package","node_modules/socket.io-client/node_modules/component-emitter/package","node_modules/socket.io-client/node_modules/ms/package","node_modules/socket.io-parser/node_modules/debug/bower","node_modules/socket.io-parser/node_modules/debug/component","node_modules/socket.io-parser/node_modules/debug/package","node_modules/socket.io-parser/node_modules/isarray/component","node_modules/socket.io-parser/node_modules/isarray/package","node_modules/socket.io-parser/node_modules/json3/package","node_modules/socket.io-parser/node_modules/ms/package","node_modules/table/dist/schemas/config","node_modules/table/dist/schemas/streamConfig","node_modules/table/node_modules/is-fullwidth-code-point/package","node_modules/table/node_modules/string-width/package","node_modules/uglify-js/node_modules/async/component","node_modules/uglify-js/node_modules/async/package","node_modules/uglify-js/node_modules/cliui/package","node_modules/uglify-js/node_modules/window-size/package","node_modules/uglify-js/node_modules/wordwrap/package","node_modules/uglify-js/node_modules/yargs/package","node_modules/vinyl-fs/node_modules/gulp-sourcemaps/package","node_modules/weinre/web/client/ExtensionAPISchema","node_modules/weinre/web/interfaces/InjectedScriptHost","node_modules/weinre/web/interfaces/Inspector","node_modules/weinre/web/interfaces/InspectorFrontendHost","node_modules/weinre/web/interfaces/WeinreClientCommands","node_modules/weinre/web/interfaces/WeinreClientEvents","node_modules/weinre/web/interfaces/WeinreExtraClientCommands","node_modules/weinre/web/interfaces/WeinreExtraTargetEvents","node_modules/weinre/web/interfaces/WeinreTargetCommands","node_modules/weinre/web/interfaces/WeinreTargetEvents","node_modules/yargs/node_modules/window-size/package","node_modules/yargs-parser/node_modules/camelcase/package","node_modules/aurelia-cli/lib/commands/generate/command","node_modules/aurelia-cli/lib/commands/new/command","node_modules/aurelia-cli/lib/commands/new/new-application","node_modules/aurelia-cli/lib/commands/help/command","node_modules/aurelia-cli/lib/resolve/lib/core","node_modules/aurelia-cli/lib/resources/content/eslintrc","node_modules/aurelia-cli/lib/resources/content/jsconfig","node_modules/aurelia-cli/lib/resources/content/settings","node_modules/aurelia-cli/lib/resources/content/tsconfig","node_modules/aurelia-cli/lib/resources/content/tslint","node_modules/aurelia-cli/lib/resources/content/typings","node_modules/aurelia-cli/lib/resources/generators/attribute","node_modules/aurelia-cli/lib/resources/generators/binding-behavior","node_modules/aurelia-cli/lib/resources/generators/element","node_modules/aurelia-cli/lib/resources/generators/generator","node_modules/aurelia-cli/lib/resources/generators/task","node_modules/aurelia-cli/lib/resources/generators/value-converter","node_modules/aurelia-cli/lib/resources/tasks/build","node_modules/aurelia-cli/lib/resources/tasks/run","node_modules/aurelia-cli/lib/resources/tasks/test","node_modules/babel-plugin-syntax-trailing-function-commas/test/fixtures/trailing-function-commas/options","node_modules/engine.io-parser/node_modules/has-binary/fixtures/big","node_modules/gulp/node_modules/yargs/locales/de","node_modules/gulp/node_modules/yargs/locales/en","node_modules/gulp/node_modules/yargs/locales/es","node_modules/gulp/node_modules/yargs/locales/fr","node_modules/gulp/node_modules/yargs/locales/id","node_modules/gulp/node_modules/yargs/locales/ja","node_modules/gulp/node_modules/yargs/locales/ko","node_modules/gulp/node_modules/yargs/locales/nb","node_modules/gulp/node_modules/yargs/locales/pirate","node_modules/gulp/node_modules/yargs/locales/pl","node_modules/gulp/node_modules/yargs/locales/pt","node_modules/gulp/node_modules/yargs/locales/pt_BR","node_modules/gulp/node_modules/yargs/locales/tr","node_modules/gulp/node_modules/yargs/locales/zh","node_modules/localtunnel/node_modules/yargs/locales/de","node_modules/localtunnel/node_modules/yargs/locales/en","node_modules/localtunnel/node_modules/yargs/locales/es","node_modules/localtunnel/node_modules/yargs/locales/fr","node_modules/localtunnel/node_modules/yargs/locales/ja","node_modules/localtunnel/node_modules/yargs/locales/pirate","node_modules/localtunnel/node_modules/yargs/locales/pt","node_modules/localtunnel/node_modules/yargs/locales/zh","node_modules/node-gyp/gyp/buildbot/commit_queue/cq_config","node_modules/npm/node_modules/config-chain/test/broken","node_modules/npm/node_modules/editor/example/beep","node_modules/npm/node_modules/normalize-package-data/lib/typos","node_modules/npm/node_modules/normalize-package-data/lib/warning_messages","node_modules/npm/test/fixtures/config/package","node_modules/resolve/test/resolver/baz/package","node_modules/resolve/test/resolver/incorrect_main/package","node_modules/sass-graph/node_modules/yargs/locales/de","node_modules/sass-graph/node_modules/yargs/locales/en","node_modules/sass-graph/node_modules/yargs/locales/es","node_modules/sass-graph/node_modules/yargs/locales/fr","node_modules/sass-graph/node_modules/yargs/locales/id","node_modules/sass-graph/node_modules/yargs/locales/it","node_modules/sass-graph/node_modules/yargs/locales/ja","node_modules/sass-graph/node_modules/yargs/locales/ko","node_modules/sass-graph/node_modules/yargs/locales/nb","node_modules/sass-graph/node_modules/yargs/locales/pirate","node_modules/sass-graph/node_modules/yargs/locales/pl","node_modules/sass-graph/node_modules/yargs/locales/pt","node_modules/sass-graph/node_modules/yargs/locales/pt_BR","node_modules/sass-graph/node_modules/yargs/locales/tr","node_modules/sass-graph/node_modules/yargs/locales/zh","node_modules/sass-graph/node_modules/yargs/locales/zh_CN","node_modules/npm/node_modules/columnify/node_modules/wcwidth/package","node_modules/npm/node_modules/glob/node_modules/fs.realpath/package","node_modules/npm/node_modules/config-chain/node_modules/proto-list/package","node_modules/npm/node_modules/glob/node_modules/minimatch/package","node_modules/npm/node_modules/glob/node_modules/path-is-absolute/package","node_modules/npm/node_modules/fstream-npm/node_modules/fstream-ignore/package","node_modules/npm/node_modules/init-package-json/node_modules/glob/package","node_modules/npm/node_modules/init-package-json/node_modules/promzard/package","node_modules/npm/node_modules/lodash._baseuniq/node_modules/lodash._createset/package","node_modules/npm/node_modules/lodash._baseuniq/node_modules/lodash._root/package","node_modules/npm/node_modules/mkdirp/node_modules/minimist/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/package","node_modules/npm/node_modules/node-gyp/node_modules/minimatch/package","node_modules/npm/node_modules/node-gyp/node_modules/path-array/package","node_modules/npm/node_modules/normalize-package-data/node_modules/is-builtin-module/package","node_modules/npm/node_modules/normalize-package-data/test/fixtures/async","node_modules/npm/node_modules/normalize-package-data/test/fixtures/badscripts","node_modules/npm/node_modules/normalize-package-data/test/fixtures/bcrypt","node_modules/npm/node_modules/normalize-package-data/test/fixtures/coffee-script","node_modules/npm/node_modules/normalize-package-data/test/fixtures/http-server","node_modules/npm/node_modules/normalize-package-data/test/fixtures/movefile","node_modules/npm/node_modules/normalize-package-data/test/fixtures/no-description","node_modules/npm/node_modules/normalize-package-data/test/fixtures/node-module_exist","node_modules/npm/node_modules/normalize-package-data/test/fixtures/npm","node_modules/npm/node_modules/normalize-package-data/test/fixtures/read-package-json","node_modules/npm/node_modules/normalize-package-data/test/fixtures/request","node_modules/npm/node_modules/normalize-package-data/test/fixtures/underscore","node_modules/npm/node_modules/npm-registry-client/node_modules/retry/package","node_modules/npm/node_modules/npm-registry-client/node_modules/concat-stream/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/package","node_modules/npm/node_modules/npmlog/node_modules/are-we-there-yet/package","node_modules/npm/node_modules/npmlog/node_modules/console-control-strings/package","node_modules/npm/node_modules/npmlog/node_modules/set-blocking/package","node_modules/npm/node_modules/npmlog/node_modules/gauge/package","node_modules/npm/node_modules/osenv/node_modules/os-homedir/package","node_modules/npm/node_modules/osenv/node_modules/os-tmpdir/package","node_modules/npm/node_modules/read/node_modules/mute-stream/package","node_modules/npm/node_modules/read-installed/node_modules/util-extend/package","node_modules/npm/node_modules/read-installed/test/fixtures/package","node_modules/npm/node_modules/read-package-json/node_modules/glob/package","node_modules/npm/node_modules/read-package-json/node_modules/json-parse-helpfulerror/package","node_modules/npm/node_modules/read-package-json/test/fixtures/badbin","node_modules/npm/node_modules/read-package-json/test/fixtures/bin","node_modules/npm/node_modules/read-package-json/test/fixtures/bom","node_modules/npm/node_modules/read-package-json/test/fixtures/emptybin","node_modules/npm/node_modules/read-package-json/test/fixtures/erroneous","node_modules/npm/node_modules/read-package-json/test/fixtures/nobom","node_modules/npm/node_modules/readable-stream/node_modules/core-util-is/package","node_modules/npm/node_modules/readable-stream/node_modules/buffer-shims/package","node_modules/npm/node_modules/readable-stream/node_modules/isarray/component","node_modules/npm/node_modules/readable-stream/node_modules/isarray/package","node_modules/npm/node_modules/readable-stream/node_modules/process-nextick-args/package","node_modules/npm/node_modules/readable-stream/node_modules/string_decoder/package","node_modules/npm/node_modules/readable-stream/node_modules/util-deprecate/package","node_modules/npm/node_modules/request/node_modules/aws-sign2/package","node_modules/npm/node_modules/request/node_modules/aws4/package","node_modules/npm/node_modules/request/node_modules/bl/package","node_modules/npm/node_modules/request/node_modules/caseless/package","node_modules/npm/node_modules/request/node_modules/combined-stream/package","node_modules/npm/node_modules/request/node_modules/extend/component","node_modules/npm/node_modules/request/node_modules/extend/package","node_modules/npm/node_modules/request/node_modules/forever-agent/package","node_modules/npm/node_modules/request/node_modules/form-data/package","node_modules/npm/node_modules/request/node_modules/har-validator/package","node_modules/npm/node_modules/request/node_modules/hawk/bower","node_modules/npm/node_modules/request/node_modules/hawk/component","node_modules/npm/node_modules/request/node_modules/hawk/package","node_modules/npm/node_modules/request/node_modules/http-signature/package","node_modules/npm/node_modules/request/node_modules/is-typedarray/package","node_modules/npm/node_modules/request/node_modules/isstream/package","node_modules/npm/node_modules/request/node_modules/mime-types/package","node_modules/npm/node_modules/request/node_modules/json-stringify-safe/package","node_modules/npm/node_modules/request/node_modules/node-uuid/bower","node_modules/npm/node_modules/request/node_modules/node-uuid/component","node_modules/npm/node_modules/request/node_modules/node-uuid/package","node_modules/npm/node_modules/request/node_modules/oauth-sign/package","node_modules/npm/node_modules/request/node_modules/qs/package","node_modules/npm/node_modules/request/node_modules/stringstream/package","node_modules/npm/node_modules/request/node_modules/tunnel-agent/package","node_modules/npm/node_modules/request/node_modules/tough-cookie/package","node_modules/npm/node_modules/unique-filename/node_modules/unique-slug/package","node_modules/npm/node_modules/tar/node_modules/block-stream/package","node_modules/npm/node_modules/validate-npm-package-license/node_modules/spdx-correct/package","node_modules/npm/node_modules/validate-npm-package-name/node_modules/builtins/builtins","node_modules/npm/node_modules/validate-npm-package-name/node_modules/builtins/package","node_modules/npm/node_modules/validate-npm-package-license/node_modules/spdx-expression-parse/package","node_modules/resolve/test/module_dir/zmodules/bbb/package","node_modules/npm/node_modules/which/node_modules/isexe/package","node_modules/resolve/test/subdirs/node_modules/a/package","node_modules/socket.io-adapter/node_modules/socket.io-parser/node_modules/debug/package","node_modules/npm/node_modules/node-gyp/gyp/buildbot/commit_queue/cq_config","node_modules/npm/node_modules/npm-registry-client/test/fixtures/underscore/cache","node_modules/npm/node_modules/read-installed/test/fixtures/extraneous-dev-dep/package","node_modules/npm/node_modules/read-installed/test/fixtures/extraneous-detected/package","node_modules/npm/node_modules/read-installed/test/fixtures/grandparent-peer/package","node_modules/npm/node_modules/read-installed/test/fixtures/grandparent-peer-dev/package","node_modules/npm/node_modules/read-package-json/test/fixtures/readmes/package","node_modules/resolve/test/resolver/biz/node_modules/garply/package","node_modules/resolve/test/pathfilter/deep_ref/node_modules/deep/package","node_modules/npm/node_modules/columnify/node_modules/wcwidth/node_modules/defaults/package","node_modules/npm/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion/package","node_modules/npm/node_modules/fstream-npm/node_modules/fstream-ignore/node_modules/minimatch/package","node_modules/npm/node_modules/init-package-json/node_modules/glob/node_modules/minimatch/package","node_modules/npm/node_modules/init-package-json/node_modules/glob/node_modules/path-is-absolute/package","node_modules/npm/node_modules/init-package-json/node_modules/promzard/example/npm-init/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/are-we-there-yet/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/console-control-strings/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/gauge/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/set-blocking/package","node_modules/npm/node_modules/node-gyp/node_modules/minimatch/node_modules/brace-expansion/package","node_modules/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/component","node_modules/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/package","node_modules/npm/node_modules/normalize-package-data/node_modules/is-builtin-module/node_modules/builtin-modules/builtin-modules","node_modules/npm/node_modules/normalize-package-data/node_modules/is-builtin-module/node_modules/builtin-modules/package","node_modules/npm/node_modules/npm-registry-client/node_modules/concat-stream/node_modules/readable-stream/package","node_modules/npm/node_modules/npm-registry-client/node_modules/concat-stream/node_modules/typedarray/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/are-we-there-yet/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/console-control-strings/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/gauge/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/set-blocking/package","node_modules/npm/node_modules/npm-registry-client/test/fixtures/@npm/npm-registry-client/cache","node_modules/npm/node_modules/npm-registry-client/test/fixtures/underscore/1.3.3/cache","node_modules/npm/node_modules/npmlog/node_modules/are-we-there-yet/node_modules/delegates/package","node_modules/npm/node_modules/npmlog/node_modules/gauge/node_modules/has-color/package","node_modules/npm/node_modules/npmlog/node_modules/gauge/node_modules/object-assign/package","node_modules/npm/node_modules/npmlog/node_modules/gauge/node_modules/signal-exit/package","node_modules/npm/node_modules/npmlog/node_modules/gauge/node_modules/string-width/package","node_modules/npm/node_modules/npmlog/node_modules/gauge/node_modules/wide-align/package","node_modules/npm/node_modules/read-package-json/node_modules/glob/node_modules/minimatch/package","node_modules/npm/node_modules/read-package-json/node_modules/glob/node_modules/path-is-absolute/package","node_modules/npm/node_modules/read-package-json/node_modules/json-parse-helpfulerror/node_modules/jju/package","node_modules/npm/node_modules/request/node_modules/bl/node_modules/readable-stream/package","node_modules/npm/node_modules/request/node_modules/combined-stream/node_modules/delayed-stream/package","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/cache","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/cacheEntry","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/content","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/cookie","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/creator","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/entry","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/har","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/log","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/page","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/pageTimings","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/postData","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/record","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/request","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/response","node_modules/npm/node_modules/request/node_modules/har-validator/lib/schemas/timings","node_modules/npm/node_modules/request/node_modules/form-data/node_modules/asynckit/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/chalk/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/commander/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/pinkie-promise/package","node_modules/npm/node_modules/request/node_modules/hawk/node_modules/boom/package","node_modules/npm/node_modules/request/node_modules/hawk/node_modules/cryptiles/package","node_modules/npm/node_modules/request/node_modules/hawk/node_modules/hoek/package","node_modules/npm/node_modules/request/node_modules/hawk/node_modules/sntp/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/assert-plus/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/package","node_modules/npm/node_modules/request/node_modules/mime-types/node_modules/mime-db/db","node_modules/npm/node_modules/request/node_modules/mime-types/node_modules/mime-db/package","node_modules/npm/node_modules/validate-npm-package-license/node_modules/spdx-correct/node_modules/spdx-license-ids/package","node_modules/npm/node_modules/validate-npm-package-license/node_modules/spdx-correct/node_modules/spdx-license-ids/spdx-license-ids","node_modules/npm/node_modules/validate-npm-package-license/node_modules/spdx-expression-parse/node_modules/spdx-exceptions/index","node_modules/npm/node_modules/validate-npm-package-license/node_modules/spdx-expression-parse/node_modules/spdx-exceptions/package","node_modules/npm/node_modules/validate-npm-package-license/node_modules/spdx-expression-parse/node_modules/spdx-license-ids/package","node_modules/npm/node_modules/validate-npm-package-license/node_modules/spdx-expression-parse/node_modules/spdx-license-ids/spdx-license-ids","node_modules/resolve/test/subdirs/node_modules/a/b/c/x","node_modules/npm/node_modules/columnify/node_modules/wcwidth/node_modules/defaults/node_modules/clone/package","node_modules/npm/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion/node_modules/balanced-match/package","node_modules/npm/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion/node_modules/concat-map/package","node_modules/npm/node_modules/fstream-npm/node_modules/fstream-ignore/node_modules/minimatch/node_modules/brace-expansion/package","node_modules/npm/node_modules/init-package-json/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/are-we-there-yet/node_modules/delegates/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/gauge/node_modules/has-color/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/gauge/node_modules/object-assign/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/gauge/node_modules/signal-exit/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/gauge/node_modules/string-width/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/gauge/node_modules/wide-align/package","node_modules/npm/node_modules/node-gyp/node_modules/minimatch/node_modules/brace-expansion/node_modules/balanced-match/package","node_modules/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/debug/bower","node_modules/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/debug/component","node_modules/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/debug/package","node_modules/npm/node_modules/node-gyp/node_modules/minimatch/node_modules/brace-expansion/node_modules/concat-map/package","node_modules/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/es6-symbol/package","node_modules/npm/node_modules/npm-registry-client/node_modules/concat-stream/node_modules/readable-stream/node_modules/core-util-is/package","node_modules/npm/node_modules/npm-registry-client/node_modules/concat-stream/node_modules/readable-stream/node_modules/isarray/component","node_modules/npm/node_modules/npm-registry-client/node_modules/concat-stream/node_modules/readable-stream/node_modules/isarray/package","node_modules/npm/node_modules/npm-registry-client/node_modules/concat-stream/node_modules/readable-stream/node_modules/process-nextick-args/package","node_modules/npm/node_modules/npm-registry-client/node_modules/concat-stream/node_modules/readable-stream/node_modules/string_decoder/package","node_modules/npm/node_modules/npm-registry-client/node_modules/concat-stream/node_modules/readable-stream/node_modules/util-deprecate/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/are-we-there-yet/node_modules/delegates/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/gauge/node_modules/has-color/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/gauge/node_modules/object-assign/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/gauge/node_modules/signal-exit/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/gauge/node_modules/string-width/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/gauge/node_modules/wide-align/package","node_modules/npm/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/code-point-at/package","node_modules/npm/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/is-fullwidth-code-point/package","node_modules/npm/node_modules/read-package-json/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion/package","node_modules/npm/node_modules/request/node_modules/bl/node_modules/readable-stream/node_modules/core-util-is/package","node_modules/npm/node_modules/request/node_modules/bl/node_modules/readable-stream/node_modules/isarray/component","node_modules/npm/node_modules/request/node_modules/bl/node_modules/readable-stream/node_modules/isarray/package","node_modules/npm/node_modules/request/node_modules/bl/node_modules/readable-stream/node_modules/process-nextick-args/package","node_modules/npm/node_modules/request/node_modules/bl/node_modules/readable-stream/node_modules/string_decoder/package","node_modules/npm/node_modules/request/node_modules/bl/node_modules/readable-stream/node_modules/util-deprecate/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/chalk/node_modules/ansi-styles/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/chalk/node_modules/escape-string-regexp/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/chalk/node_modules/has-ansi/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/chalk/node_modules/supports-color/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/commander/node_modules/graceful-readlink/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/node_modules/generate-function/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/node_modules/generate-object-property/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/node_modules/jsonpointer/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/node_modules/xtend/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/additionalItems","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/additionalProperties","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/allOf","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/anyOf","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/bignum","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/default","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/definitions","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/dependencies","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/enum","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/format","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/items","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/maximum","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/maxItems","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/maxLength","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/maxProperties","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/minimum","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/minItems","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/minLength","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/minProperties","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/multipleOf","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/not","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/nullAndFormat","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/nullAndObject","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/oneOf","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/pattern","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/patternProperties","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/properties","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/ref","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/refRemote","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/required","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/type","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/test/json-schema-draft4/uniqueItems","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/pinkie-promise/node_modules/pinkie/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim/node_modules/extsprintf/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim/node_modules/verror/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim/node_modules/json-schema/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/asn1/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/assert-plus/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/bcrypt-pbkdf/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/dashdash/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/ecc-jsbn/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/getpass/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/jodid25519/jsdoc","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/jodid25519/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/jsbn/package","node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/tweetnacl/package","node_modules/npm/node_modules/fstream-npm/node_modules/fstream-ignore/node_modules/minimatch/node_modules/brace-expansion/node_modules/balanced-match/package","node_modules/npm/node_modules/fstream-npm/node_modules/fstream-ignore/node_modules/minimatch/node_modules/brace-expansion/node_modules/concat-map/package","node_modules/npm/node_modules/init-package-json/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion/node_modules/balanced-match/package","node_modules/npm/node_modules/init-package-json/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion/node_modules/concat-map/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/code-point-at/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/is-fullwidth-code-point/package","node_modules/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/debug/node_modules/ms/package","node_modules/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/es6-symbol/node_modules/d/package","node_modules/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/es6-symbol/node_modules/es5-ext/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/code-point-at/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/is-fullwidth-code-point/package","node_modules/npm/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/code-point-at/node_modules/number-is-nan/package","node_modules/npm/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/is-fullwidth-code-point/node_modules/number-is-nan/package","node_modules/npm/node_modules/read-package-json/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion/node_modules/balanced-match/package","node_modules/npm/node_modules/read-package-json/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion/node_modules/concat-map/package","node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/node_modules/generate-object-property/node_modules/is-property/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/code-point-at/node_modules/number-is-nan/package","node_modules/npm/node_modules/node-gyp/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/is-fullwidth-code-point/node_modules/number-is-nan/package","node_modules/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/es6-symbol/node_modules/es5-ext/node_modules/es6-iterator/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/code-point-at/node_modules/number-is-nan/package","node_modules/npm/node_modules/npm-registry-client/node_modules/npmlog/node_modules/gauge/node_modules/string-width/node_modules/is-fullwidth-code-point/node_modules/number-is-nan/package"]}})}

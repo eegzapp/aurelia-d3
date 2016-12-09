@@ -11,10 +11,10 @@ export class MyD3 {
 
   attached() {
 
+console.log(this.myData);
 /**
  * Draw a bar chart with the width of each bar set by each element passed in 
- */
-
+ 
     select(this.thisChart) // grab the chart div
       .selectAll('div')  // select all div children (should be empty)
         .data(this.myData)  // associate data with the selection. This is weirdness. If there's 8 pieces of data in this.myData, then 8 enter() events will be registered
@@ -22,6 +22,7 @@ export class MyD3 {
         .style('width', d => d*10+'px')  // Then setting it's style...
         .style('background-color', 'red')
         .text((elm) => elm);  // And width (because they're bars in a horizontal bar chart)
+*/
 
         /*
         var formatMonth = timeFormat("%B"),
