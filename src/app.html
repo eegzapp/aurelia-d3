@@ -1,13 +1,16 @@
 <template>
   <require from="spam-spam"></require>
   <require from="my-d3"></require>
+  <require from="app.css"></require>
 
   <h1 css.bind="{color:'red'}">${message}</h1>
 
   <spam-spam spam-message.bind="'custom text'"></spam-spam>
 
+  <!--
   <my-d3 my-data.bind="[0,1,2,3,4,5,6,7]"></my-d3>
   <my-d3 my-data.bind="['A','B','C']"></my-d3>
+  -->
   <my-d3 my-data.bind="loadedData"></my-d3>
 
 </template>

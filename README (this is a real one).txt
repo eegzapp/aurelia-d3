@@ -24,3 +24,5 @@ Notes:
 --------------------------------
 - Store name/password so you don't have to submit it every push
     - ssh-add -k ~/.ssh/id_rsa (haven't tried this, got it off stackoverflow)
+- Adapted the d3 heirarchy code from the jsfiddle here https://jsfiddle.net/t4vzg650/6/
+    - it needed to be put into the context of both Aurelia and ES2015 classes (which was my adaptation)
