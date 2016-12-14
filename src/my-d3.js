@@ -16,16 +16,40 @@ export class MyD3 {
 
     this.subscription = this.bindingEngine.propertyObserver(this, 'myData').subscribe((newValue, oldValue) => {
         this.subscription.dispose();
-        console.log(newValue);
         this.setupChart();
     });
   }
 
+
+
+  /**
+   * My code.
+   * Draw a bar chart with the width of each bar set by each element passed in 
+
+    setupChart() {
+      select(this.thisChart) // grab the chart div
+        .selectAll('div')  // select all div children (should be empty)
+          .data(this.myData)  // associate data with the selection. This is weirdness. If there's 8 pieces of data in this.myData, then 8 enter() events will be registered
+        .enter().append('div')  // handle the 8 enter events. In this case, we're appending a 'div' for each...
+          .style('width', d => d*10+'px')  // Then setting it's style...
+          .style('background-color', 'red')
+          .text((elm) => elm);  // And width (because they're bars in a horizontal bar chart)
+    }
+  */
+
+
   /**
    * Run when the tag has finished loading
+   * 
+   * Creates a d3 interactive force-directed-graph.
+   * Based on Mike Bostock's sample Block here: https://bl.ocks.org/mbostock/533daf20348023dfdd76
+   * Had to update it for v3 of d3, put it into class structure for ES 2015 and made some modifications to make it fit into a single aurelia/bootstrap div.
+   *
+   * D3 Heirarchy docs are here: https://github.com/d3/d3-hierarchy/blob/master/README.md#tree 
+   * They cover other kinds of heirarchies as well.  
    */
   setupChart() {
-        
+
     // var width = 200;
     // var height = 300;
 
@@ -48,30 +72,7 @@ export class MyD3 {
       .on("tick", this.ticked.bind(this));
 
     this.update();
-
-    /**
-     * My code.
-     * Draw a bar chart with the width of each bar set by each element passed in 
-  
-      select(this.thisChart) // grab the chart div
-        .selectAll('div')  // select all div children (should be empty)
-          .data(this.myData)  // associate data with the selection. This is weirdness. If there's 8 pieces of data in this.myData, then 8 enter() events will be registered
-        .enter().append('div')  // handle the 8 enter events. In this case, we're appending a 'div' for each...
-          .style('width', d => d*10+'px')  // Then setting it's style...
-          .style('background-color', 'red')
-          .text((elm) => elm);  // And width (because they're bars in a horizontal bar chart)
-    */
-
-      /**
-       * Grabbed this bit of date/time d3 code from here: http://stackoverflow.com/questions/39366304/using-d3-js-with-aurelia-framework
-      var formatMonth = timeFormat("%B"),
-          formatDay = timeFormat("%A"),
-          date = new Date(2014, 4, 1); 
-
-          console.log(formatMonth(date)); // "May"
-          console.log(formatDay(date)); // "Thursday"
-      */
-    }    
+  }    
 
   zoomed() {
       this.svg.attr("transform", d3.event.transform);
@@ -106,18 +107,15 @@ export class MyD3 {
 
   dragstarted(d) {
     if (!d3.event.active) this.simulation.alphaTarget(0.3).restart()
-    //this.simulation.fix(d);
   }
 
   dragged(d) {
-    //this.simulation.fix(d, d3.event.x, d3.event.y);
     d.fx = d3.event.x;
     d.fy = d3.event.y;
   }
 
   dragended(d) {
     if (!d3.event.active) this.simulation.alphaTarget(0);
-    //this.simulation.unfix(d);
   }
 
   update() {
