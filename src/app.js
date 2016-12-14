@@ -1,4 +1,3 @@
-import {HttpClient} from 'aurelia-http-client';
 
 //import myObject from 'text!./example-data.json';
 
@@ -13,14 +12,5 @@ import {HttpClient} from 'aurelia-http-client';
 export class App {
   constructor() {
     this.message = 24;
-    this.loadedData = null;
-
-    let client = new HttpClient();
-
-    client.get('/scripts/assets/example-data.json')
-    .then(data => {
-      this.loadedData = JSON.parse(data.response);
-    });
-    
   }
 }

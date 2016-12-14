@@ -1,40 +1,50 @@
 
-import { bindable } from 'aurelia-framework';
+import { BindingEngine, inject, bindable } from 'aurelia-framework';
 import * as d3 from 'd3';
+
+@inject(BindingEngine)
 
 export class MyD3 {
   
   @bindable myData;
 
-  constructor() {
-    this.myData = "X";
+  constructor(bindingEngine) {
+    this.myData = null;
+    this.bindingEngine = bindingEngine;
 
     var root, svg, nodes, nodeSvg, linkSvg, nodeEnter, linkEnter, simulation;
+
+    this.subscription = this.bindingEngine.propertyObserver(this, 'myData').subscribe((newValue, oldValue) => {
+        this.subscription.dispose();
+        console.log(newValue);
+        this.setupChart();
+    });
   }
 
   /**
    * Run when the tag has finished loading
    */
-  attached() {
-
-    var width = 960,
-        height = 600;
+  setupChart() {
         
+    // var width = 200;
+    // var height = 300;
+
     this.root = d3.hierarchy(this.myData);
 
     var transform = d3.zoomIdentity;
 
-    this.svg = d3.select("body").append("svg")
-        .attr("width", width)
-        .attr("height", height)
-        .call(d3.zoom().scaleExtent([1 / 2, 8]).on("zoom", this.zoomed.bind(this)))
-      .append("g")
-        .attr("transform", "translate(40,0)");
+    this.svg = d3.select(this.thisChart).append("svg")
+      .attr("width", '100%')
+      .attr("height", '100%')
+      //.attr('viewBox','0 0 '+Math.min(width,height)+' '+Math.min(width,height))
+      //.attr('preserveAspectRatio','xMinYMin')
+      //.append("g")
+      //.attr("transform", "translate(" + Math.min(width,height) / 2 + "," + Math.min(width,height) / 2 + ")");
 
     this.simulation = d3.forceSimulation()
       .force("link", d3.forceLink().id(function(d) { return d.id; }))
       .force("charge", d3.forceManyBody())
-      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("center", d3.forceCenter(100,50))
       .on("tick", this.ticked.bind(this));
 
     this.update();
