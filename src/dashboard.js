@@ -1,4 +1,6 @@
 import {HttpClient} from 'aurelia-http-client';
+import $ from 'jquery';
+import gridstack from 'gridstack';
 
 export class Dashboard {
     constructor() {
@@ -10,5 +12,16 @@ export class Dashboard {
         .then(data => {
             this.loadedData = JSON.parse(data.response);
         });
+
+
+    $(function () {
+        var options = {
+            cellHeight: 80,
+            verticalMargin: 10
+        };
+        $('.grid-stack').gridstack(options);
+    });
+
     }
+
 }

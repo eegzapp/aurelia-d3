@@ -2,14 +2,38 @@
     <require from="my-d3"></require>
 
     <style>
-        [class^='col-'] {
-            border: solid 1px red;
-//            width: 400px;
-//            height: 200px;
-            padding: 0;
+        .grid-stack-item-content{
+            background-color: white;
+            border: 3px solid darkgray;
         }
     </style>
     
+
+    <div class="grid-stack">
+        <div class="grid-stack-item"
+            data-gs-x="0" data-gs-y="0"
+            data-gs-width="4" data-gs-height="3">
+                <div class="grid-stack-item-content">
+                    Nothing to see here
+                </div>
+        </div>
+        <div class="grid-stack-item"
+            data-gs-x="4" data-gs-y="0"
+            data-gs-width="4" data-gs-height="4">
+                <div class="grid-stack-item-content">
+                    <my-d3 my-data.bind="loadedData"></my-d3>
+                </div>
+        </div>
+        <div class="grid-stack-item"
+            data-gs-x="0" data-gs-y="4"
+            data-gs-width="4" data-gs-height="3">
+                <div class="grid-stack-item-content">
+                    Nothing to see here
+                </div>
+        </div>
+    </div>
+
+    <!--
     <div class="container.flow">
         <div class="row">
             <div class="col-sm-1">  
@@ -27,4 +51,5 @@
             </div>
         </div>
     </div>
+    -->
 </template>

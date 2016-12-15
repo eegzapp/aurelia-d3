@@ -1,12 +1,14 @@
 <template>
   <require from="bootstrap/css/bootstrap.css"></require>
+  <require from="gridstack/gridstack.css"></require>
   <require from="spam-spam"></require>
   <require from="app.css"></require>
   <require from="dashboard"></require>
 
-  <h1 css.bind="{color:'red'}">${message}</h1>
-
-  <spam-spam spam-message.bind="'custom text'"></spam-spam>
+  <!--
+    <h1 css.bind="{color:'red'}">${message}</h1>
+    <spam-spam spam-message.bind="'custom text'"></spam-spam>
+  -->
 
   <dashboard></dashboard>
 

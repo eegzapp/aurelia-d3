@@ -121,6 +121,12 @@
           "text",
           "jquery",
           {
+            "name": "jquery-ui",
+            "path": "../node_modules/jquery-ui/ui",
+            "main": "widget"
+          },
+          "lodash",
+          {
             "name": "bootstrap",
             "path": "../node_modules/bootstrap/dist",
             "main": "js/bootstrap",
@@ -135,6 +141,19 @@
             "name": "d3",
             "path": "../node_modules/d3/build",
             "main": "d3.js"
+          },
+          {
+            "name": "gridstack",
+            "path": "../node_modules/gridstack/dist",
+            "main": "gridstack",
+            "deps": [
+                "jquery",
+                "jquery-ui",
+                "lodash"
+            ],
+            "resources": [
+                "gridstack.css"
+            ]          
           },
           {
             "name": "aurelia-templating-resources",
